@@ -71,6 +71,8 @@ def main():
             jogador.atualizar()    # move o jogador (pulo, deslize, perseguidor)
             if mundo.colisao(jogador):  # bateu num obstáculo sem desviar
                 audio.tocar_efeito("batida")
+            if mundo.pegar_gorjetas(jogador) > 0:  # encostou numa moeda
+                audio.tocar_efeito("gorjeta")
             cenario.desenhar(tela, deslocamento)   # primeiro o fundo...
             mundo.desenhar(tela, False)  # ...os obstáculos que ainda estão à frente do entregador...
             jogador.desenhar(tela) # ...o entregador...
@@ -79,14 +81,14 @@ def main():
                 estado = "game_over"
                 audio.parar_musica()
                 audio.tocar_efeito("game_over")
-            telas.desenhar_placar(tela, distancia)  # o placar por último, para ficar por cima de tudo
+            telas.desenhar_placar(tela, distancia, mundo.moedas_pegas)  # o placar por último, para ficar por cima de tudo
         elif estado == "pausado":
             # Nada se move: desenha o jogo parado com o aviso por cima
             cenario.desenhar(tela, deslocamento)  # mesmo deslocamento: a rua fica parada
             mundo.desenhar(tela, False)
             jogador.desenhar(tela)
             mundo.desenhar(tela, True)
-            telas.desenhar_placar(tela, distancia)
+            telas.desenhar_placar(tela, distancia, mundo.moedas_pegas)
             telas.desenhar_pausa(tela)
         else:  # estado == "game_over"
             # Se bateu o recorde, guarda no arquivo. Depois de salvar, melhor fica igual
@@ -94,7 +96,7 @@ def main():
             if int(distancia) > melhor:
                 melhor = int(distancia)
                 recorde.salvar(melhor)
-            telas.desenhar_game_over(tela, distancia, melhor)
+            telas.desenhar_game_over(tela, distancia, melhor, mundo.moedas_pegas)
 
         pygame.display.flip()  # mostra na janela o quadro que acabamos de desenhar
         relogio.tick(FPS)      # espera o tempo certo para rodar a 60 quadros por segundo

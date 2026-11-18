@@ -3,7 +3,8 @@
 # Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
 # testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 #
-# O mundo: obstáculos que vêm pela rua numa pista sorteada e a colisão com o jogador.
+# O mundo: obstáculos que vêm pela rua numa pista sorteada, a colisão com o jogador
+# e as gorjetas (moedas) em fileiras para pegar.
 #
 # Cada obstáculo vive na mesma "profundidade" d que o cenario.py usa:
 # d grande = longe (alto da tela), d pequeno = perto (embaixo). A cada quadro o d
@@ -48,6 +49,16 @@ COR_BORDA_BURACO = (95, 90, 85)
 def escurecer(cor, fator):
     """A mesma cor mais escura (fator 1.0 = igual, 0.0 = preto)."""
     return (int(cor[0] * fator), int(cor[1] * fator), int(cor[2] * fator))
+
+# Gorjetas: fileiras de moedas numa pista livre.
+MOEDAS_POR_FILEIRA = 5
+ESPACO_ENTRE_MOEDAS = 0.15  # 5 moedas ocupam 0.75 de profundidade: cabem antes da próxima fileira (1.2)
+CHANCE_GORJETA = 0.6        # 60% das fileiras de obstáculos vêm com uma fileira de moedas
+TAMANHO_MOEDA = 26          # diâmetro em pixels, na altura do entregador
+COR_MOEDA = (250, 200, 40)
+COR_MOEDA_BORDA = (190, 130, 20)
+COR_MOEDA_BRILHO = (255, 245, 180)
+COR_SOMBRA_MOEDA = (35, 35, 35)
 
 
 class Obstaculo:
@@ -162,9 +173,50 @@ class Obstaculo:
         pygame.draw.ellipse(tela, COR_BURACO_FUNDO, borda.inflate(-30 * s, -borda.height * 0.5))
 
 
+class Gorjeta:
+    """Uma moeda flutuando um pouco acima da rua. Desce junto com a rua, como o cone."""
+
+    def __init__(self, pista, d):
+        self.pista = pista
+        self.d = d
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.atualizar_rect()
+
+    def atualizar_rect(self):
+        y = y_da_profundidade(self.d)
+        tamanho = max(1, round(TAMANHO_MOEDA * escala(y)))
+        self.rect = pygame.Rect(0, 0, tamanho, tamanho)
+        self.rect.bottom = round(y)  # a pegada no chão, para comparar com o rect do jogador
+        self.rect.centerx = round(x_da_pista(self.pista, y))
+
+    def descer(self, velocidade):
+        self.d -= velocidade
+        self.atualizar_rect()
+
+    def saiu_da_tela(self):
+        return self.d < D_SUMIR
+
+    def desenhar(self, tela):
+        if self.d > D_SURGIMENTO + 0.5:
+            return
+        y = y_da_profundidade(self.d)
+        s = escala(y)
+        x = x_da_pista(self.pista, y)
+        raio = TAMANHO_MOEDA / 2 * s
+        centro = (x, y - 22 * s)  # a moeda flutua 22 pixels acima do chão
+        sombra = pygame.Rect(0, 0, raio * 1.6, raio * 0.5)
+        sombra.center = (x, y)
+        pygame.draw.ellipse(tela, COR_SOMBRA_MOEDA, sombra)
+        pygame.draw.circle(tela, COR_MOEDA_BORDA, centro, raio)
+        pygame.draw.circle(tela, COR_MOEDA, centro, raio * 0.78)
+        pygame.draw.circle(tela, COR_MOEDA_BRILHO, (centro[0] - raio * 0.3, centro[1] - raio * 0.3), max(1, raio * 0.2))
+
+
 class Mundo:
     def __init__(self):
         self.obstaculos = []  # obstáculos na rua agora
+        self.gorjetas = []  # moedas na rua agora
+        self.moedas_pegas = 0  # quantas moedas o jogador pegou na partida
         self.velocidade = VELOCIDADE_RUA  # quanto a rua anda por quadro
         self.proxima_fileira = D_SURGIMENTO  # profundidade em que nasce a próxima fileira
 
@@ -175,6 +227,13 @@ class Mundo:
         for pista in pistas:
             tipo = random.choice(["carro", "cone", "buraco"])
             self.obstaculos.append(Obstaculo(tipo, pista, D_SURGIMENTO))
+
+        # Às vezes, uma fileira de moedas numa pista que ficou livre.
+        livres = [p for p in [0, 1, 2] if p not in pistas]
+        if random.random() < CHANCE_GORJETA:
+            pista = random.choice(livres)
+            for i in range(MOEDAS_POR_FILEIRA):
+                self.gorjetas.append(Gorjeta(pista, D_SURGIMENTO + i * ESPACO_ENTRE_MOEDAS))
 
     def atualizar(self):
         # Cada fileira nasce lá longe; a "linha" da próxima fileira anda junto com a rua.
@@ -187,6 +246,17 @@ class Mundo:
             obstaculo.descer(self.velocidade)
         # Fica só com os que ainda aparecem na tela.
         self.obstaculos = [o for o in self.obstaculos if not o.saiu_da_tela()]
+
+        for gorjeta in self.gorjetas:
+            gorjeta.descer(self.velocidade)
+        self.gorjetas = [g for g in self.gorjetas if not g.saiu_da_tela()]
+
+    def pegar_gorjetas(self, jogador):
+        """Tira da rua as moedas que encostaram no jogador. Devolve quantas ele pegou neste quadro."""
+        pegas = [g for g in self.gorjetas if g.rect.colliderect(jogador.rect)]
+        self.gorjetas = [g for g in self.gorjetas if g not in pegas]
+        self.moedas_pegas += len(pegas)
+        return len(pegas)
 
     def colisao(self, jogador):
         """Devolve True se o jogador levou uma batida neste quadro."""
@@ -201,9 +271,9 @@ class Mundo:
         return False
 
     def desenhar(self, tela, na_frente):
-        """Desenha os obstáculos do mais longe para o mais perto.
+        """Desenha obstáculos e moedas do mais longe para o mais perto.
         na_frente=False: os que estão atrás do jogador (chamar antes de desenhar o jogador).
         na_frente=True: os que já passaram por ele (chamar depois, para ficarem por cima)."""
-        for obstaculo in sorted(self.obstaculos, key=lambda o: -o.d):
-            if (obstaculo.d < D_JOGADOR) == na_frente:
-                obstaculo.desenhar(tela)
+        for coisa in sorted(self.obstaculos + self.gorjetas, key=lambda o: -o.d):
+            if (coisa.d < D_JOGADOR) == na_frente:
+                coisa.desenhar(tela)

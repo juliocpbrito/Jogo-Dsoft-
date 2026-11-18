@@ -120,17 +120,19 @@ def desenhar_menu(tela, melhor, quadro):
     escrever_esquerda(tela, "pausa", 24, 412, y, (230, 230, 230))
 
 
-def desenhar_placar(tela, distancia):
+def desenhar_placar(tela, distancia, moedas=0):
     # int() corta a parte decimal: 12.8 vira 12
     escrever(tela, "Distância: " + str(int(distancia)) + " m", 36, 30)  # y = 30: no topo da tela
+    escrever(tela, "Gorjetas: " + str(moedas), 30, 60)  # moedas pegas, logo abaixo
 
 
-def desenhar_game_over(tela, distancia, melhor):
+def desenhar_game_over(tela, distancia, melhor, moedas=0):
     tela.fill(COR_FUNDO)
     escrever(tela, "GAME OVER", 64, ALTURA // 3)
     escrever(tela, "Distância: " + str(int(distancia)) + " m", 40, ALTURA // 2)
     escrever(tela, "Recorde: " + str(melhor) + " m", 40, ALTURA // 2 + 50)
-    escrever(tela, "Aperte ESPAÇO para jogar de novo", 28, ALTURA // 2 + 110)
+    escrever(tela, "Gorjetas: " + str(moedas), 40, ALTURA // 2 + 100)
+    escrever(tela, "Aperte ESPAÇO para jogar de novo", 28, ALTURA // 2 + 160)
 
 
 def desenhar_pausa(tela):
