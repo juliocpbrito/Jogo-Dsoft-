@@ -1,37 +1,28 @@
+# Arquivo: main.py
+# Autor: Julio (A)
+# Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
+# testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 import pygame
-from config import (LARGURA, ALTURA, FPS, COR_FUNDO, COR_LINHA, COR_CALCADA,
-                    LARGURA_RUA_TOPO, LARGURA_RUA_BASE)  # os parênteses permitem quebrar a linha
+from config import LARGURA, ALTURA, FPS, VELOCIDADE_RUA
+import cenario           # nosso cenario.py: a rua, os prédios, os postes (cenario.desenhar(...))
 import telas             # nosso telas.py: usamos como telas.desenhar_menu(...)
 import recorde           # nosso recorde.py: carregar() e salvar()
+import audio             # nosso audio.py: música e efeitos sonoros
 from jogador import Jogador  # a classe do entregador, feita pelo B
 
 METROS_POR_QUADRO = 0.2  # quanto a distância aumenta a cada quadro (a 60 quadros por segundo: 12 m/s)
-
-
-def desenhar_pista(tela):
-    tela.fill(COR_CALCADA)  # pinta tudo de verde (a calçada); a rua é desenhada por cima
-    meio = LARGURA // 2             # x do meio da tela
-    topo = LARGURA_RUA_TOPO // 2    # meia largura da rua no alto
-    base = LARGURA_RUA_BASE // 2    # meia largura da rua embaixo
-
-    # O asfalto é um trapézio: 2 cantos no alto e 2 embaixo (uma lista de 4 pontos (x, y)).
-    pygame.draw.polygon(tela, COR_FUNDO, [(meio - topo, 0), (meio + topo, 0),
-                                          (meio + base, ALTURA), (meio - base, ALTURA)])
-
-    # As 2 linhas que separam as pistas ficam a 1/3 de cada lado do meio, no alto e embaixo.
-    # Como a rua é mais estreita no alto, as linhas se aproximam ao longe (a perspectiva).
-    pygame.draw.line(tela, COR_LINHA, (meio - topo // 3, 0), (meio - base // 3, ALTURA), 3)
-    pygame.draw.line(tela, COR_LINHA, (meio + topo // 3, 0), (meio + base // 3, ALTURA), 3)
 
 
 def main():
     pygame.init()  # liga os módulos do PyGame
     tela = pygame.display.set_mode((LARGURA, ALTURA))  # cria a janela e devolve a tela onde desenhamos
     pygame.display.set_caption("Delivery Surfers")     # título da janela
+    audio.iniciar()  # prepara a música e os efeitos (se os arquivos existirem)
     relogio = pygame.time.Clock()  # relógio para controlar a velocidade do jogo
 
     estado = "menu"  # em qual tela estamos: "menu", "jogando", "pausado" ou "game_over"
     distancia = 0.0  # metros percorridos (número decimal)
+    deslocamento = 0.0  # quanto a rua já andou; faz as faixas descerem
     melhor = recorde.carregar()  # lê o recorde salvo no arquivo
     jogador = Jogador()  # cria o entregador
 
@@ -46,33 +37,45 @@ def main():
                     if estado == "menu" or estado == "game_over":  # só começa partida nessas telas
                         estado = "jogando"
                         distancia = 0.0  # zera a distância
+                        deslocamento = 0.0  # a rua recomeça
+                        audio.tocar_musica()  # música de fundo, do começo
                         jogador = Jogador()  # entregador novo a cada partida
                 elif evento.key == pygame.K_p:  # tecla P: pausa e continua
                     if estado == "jogando":
                         estado = "pausado"
+                        audio.pausar_musica()
                     elif estado == "pausado":
                         estado = "jogando"
+                        audio.retomar_musica()
                 elif evento.key == pygame.K_ESCAPE and estado == "jogando":
                     estado = "game_over"  # TEMPORÁRIO: simula perder o jogo
+                    audio.parar_musica()
+                    audio.tocar_efeito("game_over")
                 elif estado == "jogando":  # qualquer outra tecla, durante o jogo
+                    if (evento.key == pygame.K_UP or evento.key == pygame.K_w) and not jogador.pulando:
+                        audio.tocar_efeito("pulo")  # só toca se ele realmente vai pular (não já no ar)
                     jogador.tratar_tecla(evento.key)  # o jogador decide o que fazer: ← → pista, ↑ pula, ↓ desliza
                     if evento.key == pygame.K_b:  # TEMPORÁRIO: simula batida até o C terminar
-                        jogador.bater()
+                        if jogador.bater():  # bater() devolve True se a batida valeu
+                            audio.tocar_efeito("batida")
 
         # 2) Atualização e 3) Desenho, de acordo com o estado
         if estado == "menu":
             telas.desenhar_menu(tela, melhor)
         elif estado == "jogando":
             distancia += METROS_POR_QUADRO  # anda mais um pouquinho
-            desenhar_pista(tela)   # primeiro o fundo...
+            deslocamento += VELOCIDADE_RUA  # a rua anda junto: as faixas descem
+            cenario.desenhar(tela, deslocamento)   # primeiro o fundo...
             jogador.atualizar()    # ...move o jogador (pulo, deslize, perseguidor)...
             jogador.desenhar(tela) # ...e desenha por cima
             if jogador.perdeu():   # 2 batidas seguidas
                 estado = "game_over"
+                audio.parar_musica()
+                audio.tocar_efeito("game_over")
             telas.desenhar_placar(tela, distancia)  # o placar por último, para ficar por cima de tudo
         elif estado == "pausado":
             # Nada se move: desenha o jogo parado com o aviso por cima
-            desenhar_pista(tela)
+            cenario.desenhar(tela, deslocamento)  # mesmo deslocamento: a rua fica parada
             jogador.desenhar(tela)
             telas.desenhar_placar(tela, distancia)
             telas.desenhar_pausa(tela)

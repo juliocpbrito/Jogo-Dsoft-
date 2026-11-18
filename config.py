@@ -40,3 +40,17 @@ def x_da_pista(pista, y):
     # PISTAS[pista] - meio é a distância da pista até o meio, na altura do entregador.
     # Multiplicar por escala(y) encolhe essa distância quando y está longe (em cima).
     return meio + (PISTAS[pista] - meio) * escala(y)
+
+
+# --- Rua em movimento ---
+VELOCIDADE_RUA = 0.02  # quanto a rua "anda" a cada quadro (em unidades de profundidade)
+
+# y em que a rua teria largura zero: o ponto de fuga, bem acima da tela.
+# Vem de largura_rua(y) = 0, resolvendo a conta para y.
+Y_HORIZONTE = -LARGURA_RUA_TOPO * ALTURA / (LARGURA_RUA_BASE - LARGURA_RUA_TOPO)
+
+
+def y_da_profundidade(d):
+    """y na tela de um ponto a profundidade d. d = 1 é a borda de baixo da tela; quanto maior d, mais longe (mais acima)."""
+    # Em perspectiva, a distância até o ponto de fuga encolhe na proporção 1 / d.
+    return Y_HORIZONTE + (ALTURA - Y_HORIZONTE) / d
