@@ -71,7 +71,7 @@ class Jogador:
 
         # Texto da mochila: criado uma vez só aqui, porque renderizar fonte a cada quadro é lento.
         fonte = pygame.font.Font(None, 14)  # fonte padrão do pygame, tamanho 14
-        self.texto_mochila = fonte.render("KEETA", True, (255, 255, 255))  # letras brancas
+        self.texto_mochila = fonte.render("RANGO", True, (255, 255, 255))  # letras brancas (nome inventado: sem marca de app real)
 
         self.quadro = 0  # conta os quadros desde o início; usado para animar as pernas
 
