@@ -3,12 +3,13 @@
 # Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
 # testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 import pygame
-from config import LARGURA, ALTURA, FPS, VELOCIDADE_RUA
+from config import LARGURA, ALTURA, FPS
 import cenario           # nosso cenario.py: a rua, os prédios, os postes (cenario.desenhar(...))
 import telas             # nosso telas.py: usamos como telas.desenhar_menu(...)
 import recorde           # nosso recorde.py: carregar() e salvar()
 import audio             # nosso audio.py: música e efeitos sonoros
 from jogador import Jogador  # a classe do entregador, feita pelo B
+from mundo import Mundo      # obstáculos, feitos pelo C
 
 METROS_POR_QUADRO = 0.2  # quanto a distância aumenta a cada quadro (a 60 quadros por segundo: 12 m/s)
 
@@ -25,6 +26,7 @@ def main():
     deslocamento = 0.0  # quanto a rua já andou; faz as faixas descerem
     melhor = recorde.carregar()  # lê o recorde salvo no arquivo
     jogador = Jogador()  # cria o entregador
+    mundo = Mundo()  # cria a rua com os obstáculos
 
     quadro_menu = 0  # conta os quadros no menu: faz o aviso de ESPAÇO piscar
 
@@ -42,6 +44,7 @@ def main():
                         deslocamento = 0.0  # a rua recomeça
                         audio.tocar_musica()  # música de fundo, do começo
                         jogador = Jogador()  # entregador novo a cada partida
+                        mundo = Mundo()  # obstáculos novos a cada partida
                 elif evento.key == pygame.K_p:  # tecla P: pausa e continua
                     if estado == "jogando":
                         estado = "pausado"
@@ -70,10 +73,13 @@ def main():
             telas.desenhar_menu(tela, melhor, quadro_menu)  # arte de capa, recorde e controles
         elif estado == "jogando":
             distancia += METROS_POR_QUADRO  # anda mais um pouquinho
-            deslocamento += VELOCIDADE_RUA  # a rua anda junto: as faixas descem
+            deslocamento += mundo.velocidade  # a rua anda junto: as faixas descem
+            mundo.atualizar()      # obstáculos descem e novos aparecem
             cenario.desenhar(tela, deslocamento)   # primeiro o fundo...
             jogador.atualizar()    # ...move o jogador (pulo, deslize, perseguidor)...
-            jogador.desenhar(tela) # ...e desenha por cima
+            mundo.desenhar(tela, False)  # ...os obstáculos que ainda estão à frente do entregador...
+            jogador.desenhar(tela) # ...o entregador...
+            mundo.desenhar(tela, True)   # ...e os que já passaram por ele, por cima
             if jogador.perdeu():   # 2 batidas seguidas
                 estado = "game_over"
                 audio.parar_musica()
@@ -82,7 +88,9 @@ def main():
         elif estado == "pausado":
             # Nada se move: desenha o jogo parado com o aviso por cima
             cenario.desenhar(tela, deslocamento)  # mesmo deslocamento: a rua fica parada
+            mundo.desenhar(tela, False)
             jogador.desenhar(tela)
+            mundo.desenhar(tela, True)
             telas.desenhar_placar(tela, distancia)
             telas.desenhar_pausa(tela)
         else:  # estado == "game_over"
