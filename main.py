@@ -54,7 +54,10 @@ def main():
                 elif estado == "jogando":  # qualquer outra tecla, durante o jogo
                     if (evento.key == pygame.K_UP or evento.key == pygame.K_w) and not jogador.pulando:
                         audio.tocar_efeito("pulo")  # só toca se ele realmente vai pular (não já no ar)
-                    jogador.tratar_tecla(evento.key)  # o jogador decide o que fazer: ← → pista, ↑ pula, ↓ desliza
+                    pista_antes = jogador.pista  # guarda a pista para ver se ela muda
+                    jogador.tratar_tecla(evento.key)
+                    if jogador.pista != pista_antes:  # trocou mesmo de faixa (não estava na borda)
+                        audio.tocar_efeito("troca")  # o jogador decide o que fazer: ← → pista, ↑ pula, ↓ desliza
                     if evento.key == pygame.K_b:  # TEMPORÁRIO: simula batida até o C terminar
                         if jogador.bater():  # bater() devolve True se a batida valeu
                             audio.tocar_efeito("batida")

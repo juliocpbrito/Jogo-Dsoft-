@@ -39,6 +39,9 @@ TEMPO_INVENCIVEL = FPS  # 1 segundo sem poder bater de novo
 FORCA_PULO = 15  # velocidade para cima no início do pulo (pixels por quadro)
 GRAVIDADE = 0.8  # quanto a velocidade do pulo diminui a cada quadro
 TEMPO_DESLIZE = 2 * FPS // 3  # o deslize dura 2/3 de segundo
+VELOCIDADE_TROCA = 12  # pixels por quadro na troca de pista (160 pixels entre pistas: cerca de 13 quadros, 0,2 s)
+VELOCIDADE_CLIENTE = 6  # o cliente acompanha o entregador de lado mais devagar, então fica um pouco atrás
+INCLINACAO = 4  # pixels que o corpo se inclina para o lado ao trocar de pista
 
 
 class Jogador:
@@ -46,6 +49,9 @@ class Jogador:
         self.pista = 1  # 0 = esquerda, 1 = meio, 2 = direita
         self.rect = pygame.Rect(0, 0, LARGURA_JOGADOR, ALTURA_JOGADOR)  # retângulo do entregador (no chão)
         self.rect.centerx = PISTAS[self.pista]  # centro do retângulo no centro da pista
+        self.x = float(PISTAS[self.pista])  # posição horizontal de verdade (decimal), que anda até a pista de destino
+        self.direcao = 0  # -1 indo para a esquerda, 1 para a direita, 0 parado numa pista
+        self.x_cliente = float(PISTAS[self.pista])  # posição horizontal do cliente, que vem atrás
         self.chao = ALTURA - 120  # y dos pés do entregador; sobra espaço embaixo para o perseguidor
         self.rect.bottom = self.chao
 
@@ -130,7 +136,16 @@ class Jogador:
 
     def atualizar(self):
         self.quadro += 1  # mais um quadro de animação
-        self.rect.centerx = PISTAS[self.pista]  # leva o entregador para a pista atual
+
+        # Troca de pista com animação: 'pista' é o destino; x anda até lá, VELOCIDADE_TROCA por quadro.
+        alvo = PISTAS[self.pista]  # x do centro da pista de destino
+        if abs(self.x - alvo) <= VELOCIDADE_TROCA:  # falta menos que um passo: chegou
+            self.x = alvo
+            self.direcao = 0
+        else:
+            self.direcao = 1 if alvo > self.x else -1  # para que lado está indo
+            self.x += self.direcao * VELOCIDADE_TROCA
+        self.rect.centerx = round(self.x)  # o retângulo (usado nas colisões) acompanha o desenho
 
         # Pulo: a altura muda pela velocidade, e a gravidade vai freando a subida
         # até ele começar a descer. Quando chega no chão, o pulo acaba.
@@ -166,7 +181,14 @@ class Jogador:
                 self.distancia_perseguidor += 1
 
         # O perseguidor fica na mesma pista, logo atrás (embaixo) do entregador.
-        self.perseguidor.centerx = self.rect.centerx
+        # O cliente também anda até a posição do entregador, só que mais devagar.
+        if abs(self.x_cliente - self.x) <= VELOCIDADE_CLIENTE:
+            self.x_cliente = self.x
+        elif self.x > self.x_cliente:
+            self.x_cliente += VELOCIDADE_CLIENTE
+        else:
+            self.x_cliente -= VELOCIDADE_CLIENTE
+        self.perseguidor.centerx = round(self.x_cliente)
         self.perseguidor.top = self.chao + self.distancia_perseguidor
 
     def desenhar(self, tela):
@@ -185,7 +207,8 @@ class Jogador:
 
     # feito com Claude
     def desenhar_entregador(self, tela):
-        cx = self.rect.centerx  # centro horizontal do corpo
+        cx = self.rect.centerx  # centro horizontal das pernas
+        cc = cx + INCLINACAO * self.direcao  # centro do corpo: se inclina para o lado em que está indo
         pes = self.chao - int(self.altura_pulo)  # y dos pés (sobe junto com o pulo)
 
         # Balanço das pernas e braços: seno vai de -1 a 1 conforme o quadro passa.
@@ -195,10 +218,10 @@ class Jogador:
             # Abaixado: corpo largo e baixo, com a mochila nas costas.
             self.desenhar_perna(tela, cx - 14, pes - 8, pes, 10)  # perna esquerda
             self.desenhar_perna(tela, cx + 4, pes - 8, pes, 10)  # perna direita
-            pygame.draw.ellipse(tela, COR_JOGADOR, (cx - 20, pes - 24, 40, 20))  # corpo deitado
-            pygame.draw.rect(tela, COR_MOCHILA, (cx - 16, pes - 30, 32, 14), border_radius=3)  # mochila
-            pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cx - 16, pes - 30, 32, 5), border_radius=3)  # tampa
-            pygame.draw.circle(tela, COR_CAPACETE, (cx, pes - 22), 8)  # capacete
+            pygame.draw.ellipse(tela, COR_JOGADOR, (cc - 20, pes - 24, 40, 20))  # corpo deitado
+            pygame.draw.rect(tela, COR_MOCHILA, (cc - 16, pes - 30, 32, 14), border_radius=3)  # mochila
+            pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cc - 16, pes - 30, 32, 5), border_radius=3)  # tampa
+            pygame.draw.circle(tela, COR_CAPACETE, (cc, pes - 22), 8)  # capacete
             return
 
         if self.pulando:
@@ -213,20 +236,20 @@ class Jogador:
             braco_y = pes - 36 + balanco  # braços balançando
 
         # Braços (atrás do corpo, ficam só nas laterais).
-        pygame.draw.rect(tela, COR_JOGADOR, (cx - 20, braco_y, 6, 16), border_radius=3)
-        pygame.draw.rect(tela, COR_JOGADOR, (cx + 14, braco_y - 2 * (balanco // 2), 6, 16), border_radius=3)
+        pygame.draw.rect(tela, COR_JOGADOR, (cc - 20, braco_y, 6, 16), border_radius=3)
+        pygame.draw.rect(tela, COR_JOGADOR, (cc + 14, braco_y - 2 * (balanco // 2), 6, 16), border_radius=3)
 
         # Corpo: jaqueta laranja.
-        pygame.draw.rect(tela, COR_JOGADOR, (cx - 14, pes - 44, 28, 28), border_radius=4)
+        pygame.draw.rect(tela, COR_JOGADOR, (cc - 14, pes - 44, 28, 28), border_radius=4)
 
         # Mochila de entrega: caixa grande nas costas, com tampa mais clara.
-        pygame.draw.rect(tela, COR_MOCHILA, (cx - 17, pes - 48, 34, 30), border_radius=4)
-        pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cx - 17, pes - 48, 34, 8), border_radius=4)
+        pygame.draw.rect(tela, COR_MOCHILA, (cc - 17, pes - 48, 34, 30), border_radius=4)
+        pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cc - 17, pes - 48, 34, 8), border_radius=4)
         # Nome escrito na mochila, centralizado no meio da caixa.
-        tela.blit(self.texto_mochila, self.texto_mochila.get_rect(center=(cx, pes - 30)))
+        tela.blit(self.texto_mochila, self.texto_mochila.get_rect(center=(cc, pes - 30)))
 
         # Capacete (visto de trás).
-        pygame.draw.circle(tela, COR_CAPACETE, (cx, pes - 54), 10)
+        pygame.draw.circle(tela, COR_CAPACETE, (cc, pes - 54), 10)
 
     # feito com Claude
     def desenhar_perna(self, tela, x, topo, base, largura):

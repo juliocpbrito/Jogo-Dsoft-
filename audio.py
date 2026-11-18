@@ -9,6 +9,7 @@
 # Arquivos esperados na pasta assets/sons (pode ser .ogg, .wav ou .mp3):
 #   musica   - música de fundo (toca em loop durante a partida)
 #   pulo     - efeito ao pular
+#   troca    - efeito ao trocar de faixa
 #   batida   - efeito ao bater num obstáculo
 #   game_over - efeito ao perder
 #   gorjeta  - efeito ao pegar uma gorjeta (opcional, para o mundo.py do C)
@@ -18,9 +19,11 @@ import pygame
 
 PASTA = os.path.join("assets", "sons")     # os.path.join monta o caminho certo em qualquer sistema
 EXTENSOES = [".ogg", ".wav", ".mp3"]        # formatos que tentamos, nessa ordem
-NOMES_EFEITOS = ["pulo", "batida", "game_over", "gorjeta"]
+NOMES_EFEITOS = ["pulo", "troca", "batida", "game_over", "gorjeta"]
 VOLUME_MUSICA = 0.4   # de 0.0 (mudo) a 1.0 (máximo); a música não pode abafar os efeitos
-VOLUME_EFEITOS = 0.7
+# Volume de cada efeito, de 0.0 (mudo) a 1.0 (máximo). Cada som veio de um arquivo com volume
+# diferente, então ajustamos um por um. Para equilibrar, abaixe o mais alto ou suba o mais baixo.
+VOLUMES = {"pulo": 0.4, "troca": 1.0, "batida": 0.8, "game_over": 0.8, "gorjeta": 0.7}
 
 sons = {}              # efeitos já carregados: nome -> pygame.mixer.Sound
 caminho_musica = None  # arquivo da música, se existir
@@ -48,7 +51,7 @@ def iniciar():
         if caminho is not None:
             try:
                 som = pygame.mixer.Sound(caminho)  # carrega o efeito inteiro na memória
-                som.set_volume(VOLUME_EFEITOS)
+                som.set_volume(VOLUMES.get(nome, 0.7))  # volume deste efeito (0.7 se não estiver na lista)
                 sons[nome] = som
             except pygame.error:  # arquivo estragado ou formato que o pygame não lê
                 print("Aviso: não consegui carregar o som", caminho)
