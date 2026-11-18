@@ -65,7 +65,7 @@ def main():
             quadro_menu += 1
             telas.desenhar_menu(tela, melhor, quadro_menu)  # arte de capa, recorde e controles
         elif estado == "jogando":
-            distancia += METROS_POR_QUADRO  # anda mais um pouquinho
+            distancia += METROS_POR_QUADRO * mundo.fator  # mais rápido = mais metros por quadro
             deslocamento += mundo.velocidade  # a rua anda junto: as faixas descem
             mundo.atualizar()      # obstáculos descem e novos aparecem
             jogador.atualizar()    # move o jogador (pulo, deslize, perseguidor)

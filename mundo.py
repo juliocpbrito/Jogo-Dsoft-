@@ -17,7 +17,7 @@
 
 import random
 import pygame
-from config import ALTURA, Y_CHAO, Y_HORIZONTE, VELOCIDADE_RUA, x_da_pista, escala, y_da_profundidade
+from config import ALTURA, FPS, Y_CHAO, Y_HORIZONTE, VELOCIDADE_RUA, x_da_pista, escala, y_da_profundidade
 
 # Profundidade dos pés do entregador (a conta de y_da_profundidade ao contrário, para y = Y_CHAO).
 D_JOGADOR = (ALTURA - Y_HORIZONTE) / (Y_CHAO - Y_HORIZONTE)  # cerca de 1.12
@@ -49,6 +49,10 @@ COR_BORDA_BURACO = (95, 90, 85)
 def escurecer(cor, fator):
     """A mesma cor mais escura (fator 1.0 = igual, 0.0 = preto)."""
     return (int(cor[0] * fator), int(cor[1] * fator), int(cor[2] * fator))
+
+# Velocidade crescente: a rua começa em VELOCIDADE_RUA e acelera até o dobro.
+ACELERACAO = 1 / (90 * FPS)  # a velocidade sobe 100% a cada 90 segundos...
+VELOCIDADE_MAXIMA = 2.0      # ...até no máximo 2 vezes a inicial (em 1 minuto e meio)
 
 # Gorjetas: fileiras de moedas numa pista livre.
 MOEDAS_POR_FILEIRA = 5
@@ -217,7 +221,8 @@ class Mundo:
         self.obstaculos = []  # obstáculos na rua agora
         self.gorjetas = []  # moedas na rua agora
         self.moedas_pegas = 0  # quantas moedas o jogador pegou na partida
-        self.velocidade = VELOCIDADE_RUA  # quanto a rua anda por quadro
+        self.velocidade = VELOCIDADE_RUA  # quanto a rua anda por quadro (cresce com o tempo)
+        self.fator = 1.0  # quantas vezes mais rápido que no começo
         self.proxima_fileira = D_SURGIMENTO  # profundidade em que nasce a próxima fileira
 
     def criar_fileira(self):
@@ -236,6 +241,10 @@ class Mundo:
                 self.gorjetas.append(Gorjeta(pista, D_SURGIMENTO + i * ESPACO_ENTRE_MOEDAS))
 
     def atualizar(self):
+        # Acelera um pouquinho a cada quadro, até o limite. min() devolve o menor dos dois.
+        self.fator = min(self.fator + ACELERACAO, VELOCIDADE_MAXIMA)
+        self.velocidade = VELOCIDADE_RUA * self.fator
+
         # Cada fileira nasce lá longe; a "linha" da próxima fileira anda junto com a rua.
         self.proxima_fileira -= self.velocidade
         if self.proxima_fileira <= D_SURGIMENTO:
