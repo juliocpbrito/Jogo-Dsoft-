@@ -26,6 +26,8 @@ def main():
     melhor = recorde.carregar()  # lê o recorde salvo no arquivo
     jogador = Jogador()  # cria o entregador
 
+    quadro_menu = 0  # conta os quadros no menu: faz o aviso de ESPAÇO piscar
+
     rodando = True
     while rodando:  # o loop principal: cada volta é um quadro do jogo
         # 1) Eventos: o que o jogador fez
@@ -57,14 +59,15 @@ def main():
                     pista_antes = jogador.pista  # guarda a pista para ver se ela muda
                     jogador.tratar_tecla(evento.key)
                     if jogador.pista != pista_antes:  # trocou mesmo de faixa (não estava na borda)
-                        audio.tocar_efeito("troca")  # o jogador decide o que fazer: ← → pista, ↑ pula, ↓ desliza
+                        audio.tocar_efeito("troca")  # som de troca de faixa
                     if evento.key == pygame.K_b:  # TEMPORÁRIO: simula batida até o C terminar
                         if jogador.bater():  # bater() devolve True se a batida valeu
                             audio.tocar_efeito("batida")
 
         # 2) Atualização e 3) Desenho, de acordo com o estado
         if estado == "menu":
-            telas.desenhar_menu(tela, melhor)
+            quadro_menu += 1
+            telas.desenhar_menu(tela, melhor, quadro_menu)  # arte de capa, recorde e controles
         elif estado == "jogando":
             distancia += METROS_POR_QUADRO  # anda mais um pouquinho
             deslocamento += VELOCIDADE_RUA  # a rua anda junto: as faixas descem
