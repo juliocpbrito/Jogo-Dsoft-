@@ -1,3 +1,9 @@
+# Arquivo: jogador.py
+# Autor: B (lógica do jogador); visual do entregador e do cliente (métodos desenhar_*)
+# feitos com auxílio do Claude (Anthropic) e integrados por Julio (A).
+# Uso de IA: código gerado/ajustado com IA, revisado e testado pelo grupo.
+# Detalhes na seção "Uso de IA" do README.
+import math
 import pygame
 from config import PISTAS, ALTURA, FPS
 
@@ -7,7 +13,25 @@ ALTURA_JOGADOR = 60
 ALTURA_DESLIZANDO = 30  # altura do entregador abaixado
 COR_JOGADOR = (240, 170, 40)  # laranja: o entregador
 COR_PERSEGUIDOR = (200, 60, 60)  # vermelho: o cliente com fome
-COR_SOMBRA = (35, 35, 35)  # sombra no chão durante o pulo
+COR_SOMBRA = (35, 35, 35)  # sombra no chão
+COR_CAPACETE = (40, 40, 50)  # capacete do entregador
+COR_MOCHILA = (20, 160, 70)  # mochila de entrega (verde)
+COR_MOCHILA_TAMPA = (90, 210, 120)  # tampa da mochila (verde mais claro)
+COR_SHORTS = (40, 50, 90)  # shorts do entregador
+COR_PELE_ENTREGADOR = (200, 150, 110)  # pernas e braços do entregador
+COR_HAVAIANAS = (245, 245, 245)  # havaianas brancas
+COR_PELE = (240, 200, 160)  # pele do cliente
+COR_CAMISA_CLIENTE = (200, 60, 60)  # camisa do cliente (vermelha)
+COR_CALCA_CLIENTE = (70, 50, 40)  # calça do cliente
+COR_OLHO = (255, 255, 255)
+COR_PELE_BRAVO = (235, 150, 130)  # rosto do cliente, meio vermelho de raiva
+COR_CABELO = (90, 55, 30)  # cabelo bagunçado
+COR_GUARDANAPO = (245, 245, 245)  # guardanapo no colarinho
+COR_MOLHO = (220, 110, 30)  # mancha de molho
+COR_TALHER = (200, 200, 210)  # faca e garfo
+COR_LINGUA = (210, 70, 90)
+COR_BABA = (150, 200, 255)  # baba azulada, para aparecer no fundo cinza
+COR_CONTORNO = (20, 20, 20)  # preto para olhos, boca e sobrancelhas
 DISTANCIA_LONGE = 100  # perseguidor quase fora da tela (sem batidas)
 DISTANCIA_PERTO = 10  # perseguidor colado no entregador (depois de uma batida)
 TEMPO_PARA_ESQUECER = 5 * FPS  # 5 segundos sem bater zera as batidas
@@ -38,6 +62,12 @@ class Jogador:
         self.tempo_deslize = 0  # quadros que faltam para levantar
 
         self.perseguidor = pygame.Rect(0, 0, LARGURA_JOGADOR, 50)  # retângulo do cliente com fome
+
+        # Texto da mochila: criado uma vez só aqui, porque renderizar fonte a cada quadro é lento.
+        fonte = pygame.font.Font(None, 14)  # fonte padrão do pygame, tamanho 14
+        self.texto_mochila = fonte.render("KEETA", True, (255, 255, 255))  # letras brancas
+
+        self.quadro = 0  # conta os quadros desde o início; usado para animar as pernas
 
     def esquerda(self):
         if self.pista > 0:  # só anda se não estiver na pista da esquerda
@@ -99,6 +129,7 @@ class Jogador:
         return self.batidas >= 2  # 2 batidas seguidas = game over
 
     def atualizar(self):
+        self.quadro += 1  # mais um quadro de animação
         self.rect.centerx = PISTAS[self.pista]  # leva o entregador para a pista atual
 
         # Pulo: a altura muda pela velocidade, e a gravidade vai freando a subida
@@ -139,20 +170,139 @@ class Jogador:
         self.perseguidor.top = self.chao + self.distancia_perseguidor
 
     def desenhar(self, tela):
-        pygame.draw.rect(tela, COR_PERSEGUIDOR, self.perseguidor)  # cliente com fome
+        # Sombra no chão, sempre: no ar ela mostra a altura do pulo.
+        sombra = pygame.Rect(0, 0, LARGURA_JOGADOR, 12)
+        sombra.centerx = self.rect.centerx
+        sombra.centery = self.chao
+        pygame.draw.ellipse(tela, COR_SOMBRA, sombra)
 
-        # No ar, desenha uma sombra no chão para dar a ideia de altura.
-        if self.pulando:
-            sombra = pygame.Rect(0, 0, LARGURA_JOGADOR, 12)
-            sombra.centerx = self.rect.centerx
-            sombra.centery = self.chao
-            pygame.draw.ellipse(tela, COR_SOMBRA, sombra)
-
-        # Copia o retângulo e sobe a cópia pela altura do pulo, só para desenhar.
-        # O self.rect fica no chão, porque é ele que o C usa na colisão.
-        desenho = self.rect.copy()
-        desenho.bottom = self.chao - int(self.altura_pulo)
+        # O cliente é desenhado antes, para o entregador ficar na frente dele.
+        self.desenhar_cliente(tela)
 
         # Enquanto invencível, o entregador pisca: some a cada 5 quadros.
         if (self.invencivel // 5) % 2 == 0:
-            pygame.draw.rect(tela, COR_JOGADOR, desenho)
+            self.desenhar_entregador(tela)
+
+    # feito com Claude
+    def desenhar_entregador(self, tela):
+        cx = self.rect.centerx  # centro horizontal do corpo
+        pes = self.chao - int(self.altura_pulo)  # y dos pés (sobe junto com o pulo)
+
+        # Balanço das pernas e braços: seno vai de -1 a 1 conforme o quadro passa.
+        balanco = int(math.sin(self.quadro * 0.4) * 5)
+
+        if self.deslizando:
+            # Abaixado: corpo largo e baixo, com a mochila nas costas.
+            self.desenhar_perna(tela, cx - 14, pes - 8, pes, 10)  # perna esquerda
+            self.desenhar_perna(tela, cx + 4, pes - 8, pes, 10)  # perna direita
+            pygame.draw.ellipse(tela, COR_JOGADOR, (cx - 20, pes - 24, 40, 20))  # corpo deitado
+            pygame.draw.rect(tela, COR_MOCHILA, (cx - 16, pes - 30, 32, 14), border_radius=3)  # mochila
+            pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cx - 16, pes - 30, 32, 5), border_radius=3)  # tampa
+            pygame.draw.circle(tela, COR_CAPACETE, (cx, pes - 22), 8)  # capacete
+            return
+
+        if self.pulando:
+            # No ar: pernas abertas e braços para cima.
+            self.desenhar_perna(tela, cx - 14, pes - 16, pes, 10)  # perna esquerda
+            self.desenhar_perna(tela, cx + 4, pes - 16, pes, 10)  # perna direita
+            braco_y = pes - 56  # mãos para cima
+        else:
+            # Correndo: uma perna sobe enquanto a outra desce.
+            self.desenhar_perna(tela, cx - 12, pes - 20 + balanco, pes, 9)  # perna esquerda
+            self.desenhar_perna(tela, cx + 3, pes - 20 - balanco, pes, 9)  # perna direita
+            braco_y = pes - 36 + balanco  # braços balançando
+
+        # Braços (atrás do corpo, ficam só nas laterais).
+        pygame.draw.rect(tela, COR_JOGADOR, (cx - 20, braco_y, 6, 16), border_radius=3)
+        pygame.draw.rect(tela, COR_JOGADOR, (cx + 14, braco_y - 2 * (balanco // 2), 6, 16), border_radius=3)
+
+        # Corpo: jaqueta laranja.
+        pygame.draw.rect(tela, COR_JOGADOR, (cx - 14, pes - 44, 28, 28), border_radius=4)
+
+        # Mochila de entrega: caixa grande nas costas, com tampa mais clara.
+        pygame.draw.rect(tela, COR_MOCHILA, (cx - 17, pes - 48, 34, 30), border_radius=4)
+        pygame.draw.rect(tela, COR_MOCHILA_TAMPA, (cx - 17, pes - 48, 34, 8), border_radius=4)
+        # Nome escrito na mochila, centralizado no meio da caixa.
+        tela.blit(self.texto_mochila, self.texto_mochila.get_rect(center=(cx, pes - 30)))
+
+        # Capacete (visto de trás).
+        pygame.draw.circle(tela, COR_CAPACETE, (cx, pes - 54), 10)
+
+    # feito com Claude
+    def desenhar_perna(self, tela, x, topo, base, largura):
+        # Uma perna do entregador: shorts em cima, perna de fora e havaiana branca no pé.
+        altura_shorts = min(9, base - topo)  # em perna curta o shorts ocupa tudo
+        pygame.draw.rect(tela, COR_PELE_ENTREGADOR, (x, topo, largura, base - topo))  # perna
+        pygame.draw.rect(tela, COR_SHORTS, (x - 1, topo, largura + 2, altura_shorts))  # shorts
+        pygame.draw.rect(tela, COR_HAVAIANAS, (x - 1, base - 3, largura + 2, 3))  # havaiana branca
+
+    # feito com Claude
+    def desenhar_cliente(self, tela):
+        topo = self.perseguidor.top
+        # Só desenha se o cliente já apareceu na tela.
+        if topo > ALTURA:
+            return
+
+        # Quando está colado no entregador, o cliente treme de raiva (±1 pixel).
+        tremor = 0
+        if self.distancia_perseguidor <= DISTANCIA_PERTO + 20:
+            tremor = int(math.sin(self.quadro * 1.8) * 1.5)
+        cx = self.perseguidor.centerx + tremor
+
+        balanco = int(math.sin(self.quadro * 0.4 + 1) * 4)  # balanço das pernas
+        aceno = int(math.sin(self.quadro * 0.25) * 3)  # braços subindo e descendo
+
+        # Pernas correndo, com tênis.
+        pygame.draw.rect(tela, COR_CALCA_CLIENTE, (cx - 12, topo + 34 + balanco, 9, 14))
+        pygame.draw.rect(tela, COR_CALCA_CLIENTE, (cx + 3, topo + 34 - balanco, 9, 14))
+        pygame.draw.rect(tela, COR_CONTORNO, (cx - 13, topo + 46 + balanco, 11, 4))  # tênis esquerdo
+        pygame.draw.rect(tela, COR_CONTORNO, (cx + 2, topo + 46 - balanco, 11, 4))  # tênis direito
+
+        # Corpo: camisa vermelha, com barriguinha.
+        pygame.draw.rect(tela, COR_CAMISA_CLIENTE, (cx - 15, topo + 17, 30, 22), border_radius=6)
+
+        # Guardanapo preso no colarinho (triângulo branco) com uma mancha de molho.
+        pygame.draw.polygon(tela, COR_GUARDANAPO, [(cx - 8, topo + 18), (cx + 8, topo + 18), (cx, topo + 31)])
+        pygame.draw.circle(tela, COR_MOLHO, (cx + 2, topo + 24), 2)
+
+        # Braços levantados com talheres: faca na esquerda, garfo na direita.
+        mao_e = (cx - 23, topo + 3 - aceno)  # posição da mão esquerda
+        mao_d = (cx + 23, topo + 3 + aceno)  # posição da mão direita
+        pygame.draw.line(tela, COR_CAMISA_CLIENTE, (cx - 13, topo + 22), mao_e, 5)  # manga esquerda
+        pygame.draw.line(tela, COR_CAMISA_CLIENTE, (cx + 13, topo + 22), mao_d, 5)  # manga direita
+        pygame.draw.circle(tela, COR_PELE, mao_e, 3)  # mão esquerda
+        pygame.draw.circle(tela, COR_PELE, mao_d, 3)  # mão direita
+        # Faca (lâmina cinza).
+        pygame.draw.line(tela, COR_TALHER, mao_e, (mao_e[0], mao_e[1] - 15), 3)
+        # Garfo (cabo + base + 3 dentes).
+        pygame.draw.line(tela, COR_TALHER, mao_d, (mao_d[0], mao_d[1] - 13), 2)
+        for dx in (-3, 0, 3):  # os três dentes
+            pygame.draw.line(tela, COR_TALHER, (mao_d[0] + dx, mao_d[1] - 13), (mao_d[0] + dx, mao_d[1] - 18), 1)
+
+        # Cabeça: rosto vermelho de raiva.
+        pygame.draw.circle(tela, COR_PELE_BRAVO, (cx, topo + 9), 12)
+        # Cabelo bagunçado: faixa marrom em cima e tufos.
+        pygame.draw.ellipse(tela, COR_CABELO, (cx - 12, topo - 3, 24, 11))
+        for dx in (-7, 0, 7):
+            pygame.draw.line(tela, COR_CABELO, (cx + dx, topo - 1), (cx + dx + dx // 3, topo - 6), 2)
+        # Olhos arregalados com pupila.
+        pygame.draw.circle(tela, COR_OLHO, (cx - 5, topo + 8), 4)
+        pygame.draw.circle(tela, COR_OLHO, (cx + 5, topo + 8), 4)
+        pygame.draw.circle(tela, COR_CONTORNO, (cx - 5, topo + 9), 2)
+        pygame.draw.circle(tela, COR_CONTORNO, (cx + 5, topo + 9), 2)
+        # Sobrancelhas grossas e bravas (inclinadas para o centro).
+        pygame.draw.line(tela, COR_CONTORNO, (cx - 10, topo + 2), (cx - 2, topo + 5), 3)
+        pygame.draw.line(tela, COR_CONTORNO, (cx + 10, topo + 2), (cx + 2, topo + 5), 3)
+        # Boca aberta gritando, com dentes em cima e língua.
+        pygame.draw.ellipse(tela, COR_CONTORNO, (cx - 6, topo + 13, 12, 8))
+        pygame.draw.rect(tela, COR_OLHO, (cx - 4, topo + 13, 8, 2))  # dentes
+        pygame.draw.ellipse(tela, COR_LINGUA, (cx - 3, topo + 18, 6, 3))  # língua
+        # Baba pingando do canto da boca: sobe e desce com o tempo.
+        baba = int(abs(math.sin(self.quadro * 0.15)) * 4)
+        pygame.draw.line(tela, COR_BABA, (cx + 6, topo + 18), (cx + 6, topo + 21 + baba), 2)
+        pygame.draw.circle(tela, COR_BABA, (cx + 6, topo + 22 + baba), 2)
+
+        # Barriga roncando: dois tracinhos que piscam ao lado da barriga.
+        if (self.quadro // 8) % 2 == 0:
+            pygame.draw.line(tela, COR_CONTORNO, (cx - 20, topo + 30), (cx - 17, topo + 28), 2)
+            pygame.draw.line(tela, COR_CONTORNO, (cx + 20, topo + 30), (cx + 17, topo + 28), 2)
