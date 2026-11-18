@@ -3,7 +3,7 @@
 # Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
 # testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 #
-# O mundo: obstáculos que vêm pela rua numa pista sorteada.
+# O mundo: obstáculos que vêm pela rua numa pista sorteada e a colisão com o jogador.
 #
 # Cada obstáculo vive na mesma "profundidade" d que o cenario.py usa:
 # d grande = longe (alto da tela), d pequeno = perto (embaixo). A cada quadro o d
@@ -40,6 +40,7 @@ class Obstaculo:
         self.pista = pista    # 0 = esquerda, 1 = meio, 2 = direita
         self.d = d            # profundidade da ponta mais perto do jogador
         self.comprimento = COMPRIMENTO[tipo]
+        self.ja_bateu = False  # cada obstáculo só pode causar uma batida
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.atualizar_rect()
 
@@ -94,6 +95,18 @@ class Mundo:
             obstaculo.descer(self.velocidade)
         # Fica só com os que ainda aparecem na tela.
         self.obstaculos = [o for o in self.obstaculos if not o.saiu_da_tela()]
+
+    def colisao(self, jogador):
+        """Devolve True se o jogador levou uma batida neste quadro."""
+        for obstaculo in self.obstaculos:
+            if obstaculo.ja_bateu or not obstaculo.rect.colliderect(jogador.rect):
+                continue
+            if jogador.desvia(obstaculo.tipo):  # pulou o cone ou o buraco
+                continue
+            obstaculo.ja_bateu = True  # este obstáculo não bate de novo
+            if jogador.bater():  # False se o jogador ainda estiver piscando da batida anterior
+                return True
+        return False
 
     def desenhar(self, tela, na_frente):
         """Desenha os obstáculos do mais longe para o mais perto.

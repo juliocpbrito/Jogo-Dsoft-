@@ -9,7 +9,7 @@ import telas             # nosso telas.py: usamos como telas.desenhar_menu(...)
 import recorde           # nosso recorde.py: carregar() e salvar()
 import audio             # nosso audio.py: música e efeitos sonoros
 from jogador import Jogador  # a classe do entregador, feita pelo B
-from mundo import Mundo      # obstáculos, feitos pelo C
+from mundo import Mundo      # obstáculos e colisão, feitos pelo C
 
 METROS_POR_QUADRO = 0.2  # quanto a distância aumenta a cada quadro (a 60 quadros por segundo: 12 m/s)
 
@@ -52,10 +52,6 @@ def main():
                     elif estado == "pausado":
                         estado = "jogando"
                         audio.retomar_musica()
-                elif evento.key == pygame.K_ESCAPE and estado == "jogando":
-                    estado = "game_over"  # TEMPORÁRIO: simula perder o jogo
-                    audio.parar_musica()
-                    audio.tocar_efeito("game_over")
                 elif estado == "jogando":  # qualquer outra tecla, durante o jogo
                     if (evento.key == pygame.K_UP or evento.key == pygame.K_w) and not jogador.pulando:
                         audio.tocar_efeito("pulo")  # só toca se ele realmente vai pular (não já no ar)
@@ -63,9 +59,6 @@ def main():
                     jogador.tratar_tecla(evento.key)
                     if jogador.pista != pista_antes:  # trocou mesmo de faixa (não estava na borda)
                         audio.tocar_efeito("troca")  # som de troca de faixa
-                    if evento.key == pygame.K_b:  # TEMPORÁRIO: simula batida até o C terminar
-                        if jogador.bater():  # bater() devolve True se a batida valeu
-                            audio.tocar_efeito("batida")
 
         # 2) Atualização e 3) Desenho, de acordo com o estado
         if estado == "menu":
@@ -75,8 +68,10 @@ def main():
             distancia += METROS_POR_QUADRO  # anda mais um pouquinho
             deslocamento += mundo.velocidade  # a rua anda junto: as faixas descem
             mundo.atualizar()      # obstáculos descem e novos aparecem
+            jogador.atualizar()    # move o jogador (pulo, deslize, perseguidor)
+            if mundo.colisao(jogador):  # bateu num obstáculo sem desviar
+                audio.tocar_efeito("batida")
             cenario.desenhar(tela, deslocamento)   # primeiro o fundo...
-            jogador.atualizar()    # ...move o jogador (pulo, deslize, perseguidor)...
             mundo.desenhar(tela, False)  # ...os obstáculos que ainda estão à frente do entregador...
             jogador.desenhar(tela) # ...o entregador...
             mundo.desenhar(tela, True)   # ...e os que já passaram por ele, por cima
