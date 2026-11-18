@@ -27,8 +27,8 @@ D_SUMIR = 0.9            # mais perto que isso já saiu por baixo da tela
 ESPACO_ENTRE_FILEIRAS = 1.2  # distância (em profundidade) entre uma fileira de obstáculos e a próxima
 
 # Medidas de cada tipo: largura em pixels (na altura do entregador) e comprimento em profundidade.
-LARGURA = {"carro": 104, "cone": 34, "buraco": 96}
-COMPRIMENTO = {"carro": 0.3, "cone": 0.05, "buraco": 0.1}
+LARGURA = {"carro": 104, "cone": 34, "buraco": 96, "barreira": 120}
+COMPRIMENTO = {"carro": 0.3, "cone": 0.05, "buraco": 0.1, "barreira": 0.05}
 VELOCIDADE_EXTRA_CARRO = 0.5  # o carro vem na contramão: anda 50% mais rápido que a rua
 
 # Cores (vermelho, verde, azul)
@@ -44,6 +44,10 @@ COR_BASE_CONE = (30, 30, 30)
 COR_BURACO = (25, 25, 25)
 COR_BURACO_FUNDO = (10, 10, 10)
 COR_BORDA_BURACO = (95, 90, 85)
+COR_BARREIRA_1 = (230, 50, 40)     # listras da barreira de obra: vermelho...
+COR_BARREIRA_2 = (245, 245, 245)   # ...e branco
+COR_PE_BARREIRA = (70, 70, 75)
+ALTURA_BARREIRA = 46  # altura da barra (pixels acima do chão): o entregador em pé bate, abaixado passa
 
 
 def escurecer(cor, fator):
@@ -102,6 +106,8 @@ class Obstaculo:
             self.desenhar_carro(tela)
         elif self.tipo == "cone":
             self.desenhar_cone(tela)
+        elif self.tipo == "barreira":
+            self.desenhar_barreira(tela)
         else:
             self.desenhar_buraco(tela)
 
@@ -162,6 +168,21 @@ class Obstaculo:
         # Faixa branca: um trapézio no meio do cone.
         pygame.draw.polygon(tela, COR_FAIXA_CONE, [(x - 8.5 * s, y - 21 * s), (x + 8.5 * s, y - 21 * s),
                                                    (x + 6 * s, y - 29 * s), (x - 6 * s, y - 29 * s)])
+
+    def desenhar_barreira(self, tela):
+        """Barreira de obra: uma barra listrada sobre dois pés. Só dá para passar deslizando (tecla ↓)."""
+        y = y_da_profundidade(self.d + self.comprimento / 2)
+        s = escala(y)
+        x = x_da_pista(self.pista, y)
+        meia = LARGURA["barreira"] / 2 * s
+        topo = y - (ALTURA_BARREIRA + 14) * s  # parte de cima da barra
+        for lado in (-1, 1):  # os dois pés
+            pygame.draw.rect(tela, COR_PE_BARREIRA, (x + lado * (meia - 8 * s) - 3 * s, topo, 6 * s, y - topo))
+        # Barra com 6 listras alternando vermelho e branco.
+        largura_listra = 2 * meia / 6
+        for i in range(6):
+            cor = COR_BARREIRA_1 if i % 2 == 0 else COR_BARREIRA_2
+            pygame.draw.rect(tela, cor, (x - meia + i * largura_listra, topo, largura_listra + 1, 14 * s))
 
     def desenhar_buraco(self, tela):
         """Buraco no asfalto: uma elipse escura deitada no chão, com borda de asfalto quebrado."""
@@ -230,7 +251,7 @@ class Mundo:
         quantos = random.choice([1, 1, 2])  # 1 obstáculo é mais comum que 2
         pistas = random.sample([0, 1, 2], quantos)  # sample: sorteia sem repetir
         for pista in pistas:
-            tipo = random.choice(["carro", "cone", "buraco"])
+            tipo = random.choice(["carro", "cone", "buraco", "barreira"])
             self.obstaculos.append(Obstaculo(tipo, pista, D_SURGIMENTO))
 
         # Às vezes, uma fileira de moedas numa pista que ficou livre.
