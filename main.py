@@ -73,9 +73,12 @@ def main():
                 audio.tocar_efeito("batida")
             if mundo.pegar_gorjetas(jogador) > 0:  # encostou numa moeda
                 audio.tocar_efeito("gorjeta")
+            if mundo.pegar_capacete(jogador):  # pegou o power-up
+                audio.tocar_efeito("gorjeta")
             cenario.desenhar(tela, deslocamento)   # primeiro o fundo...
             mundo.desenhar(tela, False)  # ...os obstáculos que ainda estão à frente do entregador...
             jogador.desenhar(tela) # ...o entregador...
+            mundo.desenhar_protecao(tela, jogador)  # bolha do capacete, se estiver protegido
             mundo.desenhar(tela, True)   # ...e os que já passaram por ele, por cima
             if jogador.perdeu():   # 2 batidas seguidas
                 estado = "game_over"
@@ -87,6 +90,7 @@ def main():
             cenario.desenhar(tela, deslocamento)  # mesmo deslocamento: a rua fica parada
             mundo.desenhar(tela, False)
             jogador.desenhar(tela)
+            mundo.desenhar_protecao(tela, jogador)
             mundo.desenhar(tela, True)
             telas.desenhar_placar(tela, distancia, mundo.moedas_pegas)
             telas.desenhar_pausa(tela)

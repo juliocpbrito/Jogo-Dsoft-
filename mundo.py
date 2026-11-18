@@ -4,7 +4,7 @@
 # testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 #
 # O mundo: obstáculos que vêm pela rua numa pista sorteada, a colisão com o jogador
-# e as gorjetas (moedas) em fileiras para pegar.
+# as gorjetas (moedas) em fileiras para pegar e o capacete, que protege das batidas.
 #
 # Cada obstáculo vive na mesma "profundidade" d que o cenario.py usa:
 # d grande = longe (alto da tela), d pequeno = perto (embaixo). A cada quadro o d
@@ -67,6 +67,13 @@ COR_MOEDA = (250, 200, 40)
 COR_MOEDA_BORDA = (190, 130, 20)
 COR_MOEDA_BRILHO = (255, 245, 180)
 COR_SOMBRA_MOEDA = (35, 35, 35)
+
+# Capacete (power-up): aparece de vez em quando numa pista livre. Pegou: 10 segundos sem levar batida.
+CHANCE_CAPACETE = 0.08        # 8% das fileiras trazem um capacete
+TEMPO_PROTECAO = 10 * FPS     # quanto tempo a proteção dura, em quadros
+COR_CAPACETE_ITEM = (40, 120, 230)
+COR_VISEIRA = (170, 220, 255)
+COR_BOLHA = (120, 200, 255)
 
 
 class Obstaculo:
@@ -237,11 +244,53 @@ class Gorjeta:
         pygame.draw.circle(tela, COR_MOEDA_BRILHO, (centro[0] - raio * 0.3, centro[1] - raio * 0.3), max(1, raio * 0.2))
 
 
+class Capacete:
+    """O power-up: um capacete azul flutuando na rua. Desce junto com a rua, como a moeda."""
+
+    def __init__(self, pista, d):
+        self.pista = pista
+        self.d = d
+        self.rect = pygame.Rect(0, 0, 0, 0)
+        self.atualizar_rect()
+
+    def atualizar_rect(self):
+        y = y_da_profundidade(self.d)
+        tamanho = max(1, round(34 * escala(y)))
+        self.rect = pygame.Rect(0, 0, tamanho, tamanho)
+        self.rect.bottom = round(y)
+        self.rect.centerx = round(x_da_pista(self.pista, y))
+
+    def descer(self, velocidade):
+        self.d -= velocidade
+        self.atualizar_rect()
+
+    def saiu_da_tela(self):
+        return self.d < D_SUMIR
+
+    def desenhar(self, tela):
+        if self.d > D_SURGIMENTO + 0.5:
+            return
+        y = y_da_profundidade(self.d)
+        s = escala(y)
+        x = x_da_pista(self.pista, y)
+        cy = y - 26 * s  # flutua acima do chão
+        sombra = pygame.Rect(0, 0, 30 * s, 8 * s)
+        sombra.center = (x, y)
+        pygame.draw.ellipse(tela, COR_SOMBRA_MOEDA, sombra)
+        casco = pygame.Rect(0, 0, 34 * s, 30 * s)
+        casco.center = (x, cy)
+        pygame.draw.ellipse(tela, COR_CAPACETE_ITEM, casco)  # o casco
+        pygame.draw.rect(tela, COR_CAPACETE_ITEM, (x - 17 * s, cy, 34 * s, 8 * s))  # a aba de baixo
+        pygame.draw.rect(tela, COR_VISEIRA, (x - 11 * s, cy - 2 * s, 22 * s, 8 * s), border_radius=max(1, int(3 * s)))
+
+
 class Mundo:
     def __init__(self):
         self.obstaculos = []  # obstáculos na rua agora
         self.gorjetas = []  # moedas na rua agora
         self.moedas_pegas = 0  # quantas moedas o jogador pegou na partida
+        self.capacetes = []  # capacetes (power-up) na rua agora
+        self.protecao = 0  # quadros que faltam de proteção do capacete (0 = sem proteção)
         self.velocidade = VELOCIDADE_RUA  # quanto a rua anda por quadro (cresce com o tempo)
         self.fator = 1.0  # quantas vezes mais rápido que no começo
         self.proxima_fileira = D_SURGIMENTO  # profundidade em que nasce a próxima fileira
@@ -258,8 +307,13 @@ class Mundo:
         livres = [p for p in [0, 1, 2] if p not in pistas]
         if random.random() < CHANCE_GORJETA:
             pista = random.choice(livres)
+            livres.remove(pista)  # essa pista agora tem moedas
             for i in range(MOEDAS_POR_FILEIRA):
                 self.gorjetas.append(Gorjeta(pista, D_SURGIMENTO + i * ESPACO_ENTRE_MOEDAS))
+
+        # Raramente, um capacete numa pista que ainda está livre (sem obstáculo e sem moedas).
+        if livres and random.random() < CHANCE_CAPACETE:
+            self.capacetes.append(Capacete(random.choice(livres), D_SURGIMENTO))
 
     def atualizar(self):
         # Acelera um pouquinho a cada quadro, até o limite. min() devolve o menor dos dois.
@@ -281,6 +335,12 @@ class Mundo:
             gorjeta.descer(self.velocidade)
         self.gorjetas = [g for g in self.gorjetas if not g.saiu_da_tela()]
 
+        for capacete in self.capacetes:
+            capacete.descer(self.velocidade)
+        self.capacetes = [c for c in self.capacetes if not c.saiu_da_tela()]
+        if self.protecao > 0:
+            self.protecao -= 1  # a proteção vai acabando
+
     def pegar_gorjetas(self, jogador):
         """Tira da rua as moedas que encostaram no jogador. Devolve quantas ele pegou neste quadro."""
         pegas = [g for g in self.gorjetas if g.rect.colliderect(jogador.rect)]
@@ -295,15 +355,39 @@ class Mundo:
                 continue
             if jogador.desvia(obstaculo.tipo):  # pulou o cone ou o buraco
                 continue
+            if self.protecao > 0:  # de capacete: atravessa sem contar batida
+                obstaculo.ja_bateu = True
+                continue
             obstaculo.ja_bateu = True  # este obstáculo não bate de novo
             if jogador.bater():  # False se o jogador ainda estiver piscando da batida anterior
                 return True
         return False
 
+    def pegar_capacete(self, jogador):
+        """Se o jogador encostou num capacete, liga a proteção e devolve True."""
+        for capacete in self.capacetes:
+            if capacete.rect.colliderect(jogador.rect):
+                self.capacetes.remove(capacete)
+                self.protecao = TEMPO_PROTECAO
+                return True
+        return False
+
+    def desenhar_protecao(self, tela, jogador):
+        """Bolha azul em volta do entregador enquanto o capacete protege. Pisca nos últimos 2 segundos."""
+        if self.protecao <= 0:
+            return
+        if self.protecao < 2 * FPS and (self.protecao // 6) % 2 == 0:
+            return  # piscando: avisa que vai acabar
+        centro = (jogador.rect.centerx, jogador.chao - int(jogador.altura_pulo) - 30)
+        bolha = pygame.Surface((96, 96), pygame.SRCALPHA)  # folha transparente para a bolha
+        pygame.draw.circle(bolha, COR_BOLHA + (60,), (48, 48), 46)  # miolo bem transparente
+        pygame.draw.circle(bolha, COR_BOLHA + (200,), (48, 48), 46, 3)  # contorno
+        tela.blit(bolha, bolha.get_rect(center=centro))
+
     def desenhar(self, tela, na_frente):
-        """Desenha obstáculos e moedas do mais longe para o mais perto.
+        """Desenha obstáculos, moedas e capacetes do mais longe para o mais perto.
         na_frente=False: os que estão atrás do jogador (chamar antes de desenhar o jogador).
         na_frente=True: os que já passaram por ele (chamar depois, para ficarem por cima)."""
-        for coisa in sorted(self.obstaculos + self.gorjetas, key=lambda o: -o.d):
+        for coisa in sorted(self.obstaculos + self.gorjetas + self.capacetes, key=lambda o: -o.d):
             if (coisa.d < D_JOGADOR) == na_frente:
                 coisa.desenhar(tela)
