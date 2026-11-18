@@ -30,8 +30,24 @@ LARGURA = {"carro": 104, "cone": 34, "buraco": 96}
 COMPRIMENTO = {"carro": 0.3, "cone": 0.05, "buraco": 0.1}
 VELOCIDADE_EXTRA_CARRO = 0.5  # o carro vem na contramão: anda 50% mais rápido que a rua
 
-# Cor provisória de cada tipo, até os desenhos ficarem prontos.
-COR_TIPO = {"carro": (200, 40, 40), "cone": (250, 120, 20), "buraco": (20, 20, 20)}
+# Cores (vermelho, verde, azul)
+CORES_CARRO = [(200, 40, 40), (40, 90, 190), (235, 235, 235), (40, 40, 45), (230, 180, 30), (60, 150, 80)]
+COR_VIDRO = (40, 60, 90)
+COR_PNEU = (20, 20, 20)
+COR_FAROL = (255, 240, 150)
+COR_PARACHOQUE = (90, 90, 95)
+COR_PLACA = (240, 240, 240)
+COR_CONE = (250, 120, 20)
+COR_FAIXA_CONE = (250, 250, 250)
+COR_BASE_CONE = (30, 30, 30)
+COR_BURACO = (25, 25, 25)
+COR_BURACO_FUNDO = (10, 10, 10)
+COR_BORDA_BURACO = (95, 90, 85)
+
+
+def escurecer(cor, fator):
+    """A mesma cor mais escura (fator 1.0 = igual, 0.0 = preto)."""
+    return (int(cor[0] * fator), int(cor[1] * fator), int(cor[2] * fator))
 
 
 class Obstaculo:
@@ -41,6 +57,7 @@ class Obstaculo:
         self.d = d            # profundidade da ponta mais perto do jogador
         self.comprimento = COMPRIMENTO[tipo]
         self.ja_bateu = False  # cada obstáculo só pode causar uma batida
+        self.cor = random.choice(CORES_CARRO)  # só usada pelo carro
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.atualizar_rect()
 
@@ -66,8 +83,83 @@ class Obstaculo:
     def desenhar(self, tela):
         if self.d > D_SURGIMENTO + 0.5:  # ainda acima da tela
             return
-        # Provisório: um retângulo na pegada do obstáculo. Os desenhos vêm depois.
-        pygame.draw.rect(tela, COR_TIPO[self.tipo], self.rect)
+        if self.tipo == "carro":
+            self.desenhar_carro(tela)
+        elif self.tipo == "cone":
+            self.desenhar_cone(tela)
+        else:
+            self.desenhar_buraco(tela)
+
+    # --- Desenhos (sprites feitos com formas do pygame, sem imagens de fora) ---
+
+    def desenhar_carro(self, tela):
+        """Carro na contramão, visto de cima e de frente: teto em perspectiva e a frente com faróis."""
+        y0 = y_da_profundidade(self.d)  # chão na frente do carro
+        y1 = y_da_profundidade(self.d + self.comprimento)  # chão na traseira
+        s0, s1 = escala(y0), escala(y1)  # tamanho na frente e atrás
+        x0, x1 = x_da_pista(self.pista, y0), x_da_pista(self.pista, y1)
+        meia0, meia1 = LARGURA["carro"] / 2 * s0, LARGURA["carro"] / 2 * s1  # meia largura
+        alto0, alto1 = 46 * s0, 46 * s1  # altura do carro
+
+        def em_cima(fracao):
+            """Ponto de cima do carro a uma fração do comprimento (0 = frente, 1 = traseira): (x, y, meia largura)."""
+            x = x0 + (x1 - x0) * fracao
+            y = (y0 - alto0) + ((y1 - alto1) - (y0 - alto0)) * fracao
+            meia = meia0 + (meia1 - meia0) * fracao
+            return x, y, meia
+
+        def faixa(f_a, f_b, cor, aperto=1.0):
+            """Pinta um pedaço do teto entre as frações f_a e f_b. aperto < 1 deixa mais estreito."""
+            xa, ya, ma = em_cima(f_a)
+            xb, yb, mb = em_cima(f_b)
+            pygame.draw.polygon(tela, cor, [(xa - ma * aperto, ya), (xa + ma * aperto, ya),
+                                            (xb + mb * aperto, yb), (xb - mb * aperto, yb)])
+
+        faixa(0, 1, self.cor)                           # teto inteiro (capô, cabine e porta-malas)
+        faixa(0.28, 0.42, COR_VIDRO, 0.85)              # para-brisa
+        faixa(0.42, 0.78, escurecer(self.cor, 0.85), 0.8)  # teto da cabine
+        faixa(0.78, 0.86, COR_VIDRO, 0.8)               # vidro de trás
+
+        # Frente: um retângulo do chão até o capô.
+        frente = pygame.Rect(0, 0, meia0 * 2, alto0)
+        frente.bottomleft = (x0 - meia0, y0)
+        pygame.draw.rect(tela, escurecer(self.cor, 0.75), frente, border_radius=max(1, int(6 * s0)))
+        # Pneus aparecendo embaixo, nos cantos.
+        for lado in (-1, 1):
+            pneu = pygame.Rect(0, 0, 16 * s0, 12 * s0)
+            pneu.midbottom = (x0 + lado * (meia0 - 10 * s0), y0)
+            pygame.draw.rect(tela, COR_PNEU, pneu)
+        # Para-choque, faróis e placa.
+        pygame.draw.rect(tela, COR_PARACHOQUE, (x0 - meia0, y0 - 16 * s0, meia0 * 2, 7 * s0))
+        for lado in (-1, 1):
+            pygame.draw.circle(tela, COR_FAROL, (x0 + lado * (meia0 - 14 * s0), y0 - 30 * s0), max(1, 7 * s0))
+        placa = pygame.Rect(0, 0, 26 * s0, 9 * s0)
+        placa.center = (x0, y0 - 24 * s0)
+        pygame.draw.rect(tela, COR_PLACA, placa)
+
+    def desenhar_cone(self, tela):
+        """Cone de trânsito laranja com faixa branca e base preta."""
+        y = y_da_profundidade(self.d + self.comprimento / 2)  # meio da pegada no chão
+        s = escala(y)
+        x = x_da_pista(self.pista, y)
+        pygame.draw.rect(tela, COR_BASE_CONE, (x - 18 * s, y - 6 * s, 36 * s, 6 * s))  # base quadrada
+        pygame.draw.polygon(tela, COR_CONE, [(x - 13 * s, y - 6 * s), (x + 13 * s, y - 6 * s), (x, y - 48 * s)])
+        # Faixa branca: um trapézio no meio do cone.
+        pygame.draw.polygon(tela, COR_FAIXA_CONE, [(x - 8.5 * s, y - 21 * s), (x + 8.5 * s, y - 21 * s),
+                                                   (x + 6 * s, y - 29 * s), (x - 6 * s, y - 29 * s)])
+
+    def desenhar_buraco(self, tela):
+        """Buraco no asfalto: uma elipse escura deitada no chão, com borda de asfalto quebrado."""
+        y_perto = y_da_profundidade(self.d)
+        y_longe = y_da_profundidade(self.d + self.comprimento)
+        s = escala(y_perto)
+        x = x_da_pista(self.pista, (y_perto + y_longe) / 2)
+        largura = LARGURA["buraco"] * s
+        borda = pygame.Rect(0, 0, largura, y_perto - y_longe)
+        borda.midbottom = (x, y_perto)
+        pygame.draw.ellipse(tela, COR_BORDA_BURACO, borda)
+        pygame.draw.ellipse(tela, COR_BURACO, borda.inflate(-8 * s, -borda.height * 0.2))
+        pygame.draw.ellipse(tela, COR_BURACO_FUNDO, borda.inflate(-30 * s, -borda.height * 0.5))
 
 
 class Mundo:
