@@ -1,4 +1,8 @@
 # Constantes do jogo. Se quiser mudar um valor, mude aqui e vale para todos os arquivos.
+# Arquivo: config.py
+# Autor: Julio (A)
+# Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
+# testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
 
 LARGURA = 480  # largura da janela, em pixels
 ALTURA = 800   # altura da janela, em pixels
@@ -15,7 +19,6 @@ Y_CHAO = ALTURA - 120  # 120 pixels acima do fim da tela
 COR_FUNDO = (60, 60, 60)     # cinza-escuro: o asfalto
 COR_LINHA = (230, 230, 230)  # quase branco: as linhas das pistas
 COR_TEXTO = (255, 255, 255)  # branco: os textos
-COR_CALCADA = (90, 120, 80)  # verde: o que fica fora da rua
 
 # Rua em perspectiva: estreita no alto da tela (longe) e larga embaixo (perto)
 LARGURA_RUA_TOPO = 160  # largura da rua em y = 0

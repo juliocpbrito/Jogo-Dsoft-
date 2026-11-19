@@ -1,3 +1,8 @@
+# Arquivo: recorde.py
+# Autor: Julio (A)
+# Uso de IA: código escrito com auxílio do Claude (Anthropic) e revisado,
+# testado e entendido pelo autor. Detalhes na seção "Uso de IA" do README.
+
 import os  # os: usado para checar se um arquivo existe
 
 ARQUIVO = "recorde.txt"  # nome do arquivo onde o recorde fica guardado
