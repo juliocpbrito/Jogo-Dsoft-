@@ -14,6 +14,7 @@
 #   - a altura na tela:   y = y_da_profundidade(d) - altura / d
 # Quanto mais longe, mais perto do centro e menor.
 
+import math
 import pygame
 from config import LARGURA, ALTURA, COR_FUNDO, COR_LINHA, LARGURA_RUA_TOPO, LARGURA_RUA_BASE, y_da_profundidade
 
@@ -50,6 +51,18 @@ COR_TRANSFORMADOR = (110, 120, 130)
 CORES_CASAS = [(60, 170, 170), (240, 200, 60), (235, 120, 150), (140, 200, 90),
                (80, 140, 210), (240, 150, 60), (230, 225, 215), (190, 120, 200)]
 CORES_ROUPAS = [(230, 60, 80), (250, 210, 50), (60, 160, 230), (255, 255, 255), (90, 200, 120)]
+# Pessoas na calçada
+PASSO_PESSOAS = 0.45  # de quantos em quantos "d" pode haver uma pessoa (em cada lado)
+COR_PELES = [(240, 200, 160), (210, 160, 115), (160, 110, 75), (105, 70, 48)]
+COR_CABELOS = [(30, 20, 15), (70, 45, 25), (20, 20, 20), (120, 80, 40)]
+COR_BERMUDAS = [(50, 70, 120), (40, 40, 45), (200, 200, 205), (170, 120, 70)]
+COR_CAMISA_BRASIL = (250, 215, 40)  # amarelo da camisa da seleção
+COR_GOLA_BRASIL = (0, 150, 60)      # gola verde
+COR_CADEIRA = (240, 240, 240)       # cadeira de plástico branca
+COR_MESA = (200, 50, 50)
+COR_GARRAFA = (40, 120, 60)
+# Tênis pendurados nos fios
+COR_TENIS = [(240, 240, 240), (220, 50, 50), (60, 110, 220), (250, 200, 40)]
 
 
 def escurecer(cor, fator=0.8):
@@ -258,6 +271,88 @@ def fio(tela, a, b, frouxo):
     pygame.draw.line(tela, COR_FIO, (meio_x, meio_y), b, 1)
 
 
+def retangulo_mundo(tela, cor, x, y, largura, altura, s):
+    """Retângulo com a base no ponto (x, y) e o meio da base em x. Tamanhos em pixels de d = 1; s = 1/d encolhe."""
+    pygame.draw.rect(tela, cor, (x - largura * s / 2, y - altura * s, largura * s, altura * s))
+
+
+def desenhar_pessoa(tela, lado, d, indice, deslocamento):
+    """Uma pessoa na calçada (vista de trás). O 'indice' decide quem é: sempre a mesma pessoa no mesmo lugar."""
+    tipo = sorteio(indice, 11, 6)  # 0 e 1: em pé | 2: criança | 3: camisa da seleção | 4: sentado no bar | 5: andando
+    lateral = DIST_PAREDE - 34 + sorteio(indice, 12, 20)  # em que ponto da largura da calçada ela está
+    x, y = ponto(lado, d, lateral, 0)  # onde estão os pés
+    s = 1 / d  # tamanho: quanto mais longe, menor
+    pele = COR_PELES[sorteio(indice, 13, len(COR_PELES))]
+    cabelo = COR_CABELOS[sorteio(indice, 14, len(COR_CABELOS))]
+    camisa = CORES_ROUPAS[sorteio(indice, 15, len(CORES_ROUPAS))]
+    bermuda = COR_BERMUDAS[sorteio(indice, 16, len(COR_BERMUDAS))]
+    if tipo == 3:
+        camisa = COR_CAMISA_BRASIL
+    f = 0.6 if tipo == 2 else 1.0  # criança: 60% do tamanho
+    s = s * f
+
+    if tipo == 4:  # sentado numa cadeira de plástico, com uma mesinha ao lado
+        xm, ym = ponto(lado, d, lateral + 26, 0)  # mesa um pouco mais perto da casa
+        retangulo_mundo(tela, COR_MESA, xm, ym - 18 / d, 20, 3, 1 / d)       # tampo
+        retangulo_mundo(tela, COR_MESA, xm, ym, 3, 18, 1 / d)                # perna da mesa
+        retangulo_mundo(tela, COR_GARRAFA, xm + 4 / d, ym - 21 / d, 4, 12, 1 / d)  # garrafa em cima
+        retangulo_mundo(tela, COR_CADEIRA, x, y - 14 * s, 22, 5, s)          # assento
+        retangulo_mundo(tela, COR_CADEIRA, x, y, 18, 14, s)                  # pés da cadeira
+        retangulo_mundo(tela, bermuda, x, y, 16, 14, s)                      # pernas
+        retangulo_mundo(tela, camisa, x, y - 17 * s, 20, 24, s)              # corpo
+        pygame.draw.circle(tela, pele, (x, y - 47 * s), max(2, 7 * s))       # cabeça
+        pygame.draw.circle(tela, cabelo, (x, y - 49 * s), max(2, 7 * s), draw_top_left=True, draw_top_right=True)  # cabelo
+        return
+
+    balanco = 0
+    if tipo == 5:  # andando: as pernas se alternam com o tempo
+        balanco = math.sin(deslocamento * 30 + indice) * 4 * s
+    # Pernas (bermuda em cima, pele embaixo) e chinelo.
+    for lado_perna, dx in ((1, -6), (-1, 6)):
+        px = x + dx * s
+        pygame.draw.rect(tela, pele, (px - 3 * s, y - 28 * s + balanco * lado_perna, 6 * s, 28 * s))
+        pygame.draw.rect(tela, bermuda, (px - 4 * s, y - 28 * s + balanco * lado_perna, 8 * s, 12 * s))
+    # Corpo e braços.
+    retangulo_mundo(tela, camisa, x, y - 26 * s, 22, 26, s)
+    pygame.draw.rect(tela, pele, (x - 15 * s, y - 50 * s, 5 * s, 20 * s))
+    pygame.draw.rect(tela, pele, (x + 10 * s, y - 50 * s, 5 * s, 20 * s))
+    if tipo == 3:  # gola verde da camisa da seleção
+        retangulo_mundo(tela, COR_GOLA_BRASIL, x, y - 48 * s, 12, 4, s)
+    # Cabeça e cabelo.
+    pygame.draw.circle(tela, pele, (x, y - 58 * s), max(2, 7 * s))
+    pygame.draw.circle(tela, cabelo, (x, y - 60 * s), max(2, 7 * s), draw_top_left=True, draw_top_right=True)
+
+
+def desenhar_pessoas(tela, deslocamento):
+    """Pessoas nas duas calçadas, descendo com a rua. As mais longe primeiro."""
+    primeiro = int(deslocamento // PASSO_PESSOAS)
+    ultimo = primeiro
+    while ultimo * PASSO_PESSOAS - deslocamento < LIMITE_PROFUNDIDADE:
+        ultimo += 1
+    for n in range(ultimo, primeiro - 1, -1):
+        d = n * PASSO_PESSOAS - deslocamento
+        if d < 1.3:  # perto demais: já está fora da tela pelos lados
+            continue
+        for lado in (-1, 1):
+            indice = n * 2 + (1 if lado > 0 else 0)
+            if sorteio(indice, 10, 10) < 5:  # só metade dos lugares tem alguém
+                desenhar_pessoa(tela, lado, d, indice, deslocamento)
+
+
+def tenis_pendurado(tela, ponto_fio, d, k):
+    """Um par de tênis amarrado pelos cadarços no meio do fio (tradição de rua brasileira)."""
+    mx, my = ponto_fio
+    s = 1 / d
+    cor = COR_TENIS[sorteio(k, 21, len(COR_TENIS))]
+    pygame.draw.line(tela, COR_FIO, (mx, my), (mx - 6 * s, my + 9 * s), 1)  # cadarço de um
+    pygame.draw.line(tela, COR_FIO, (mx, my), (mx + 6 * s, my + 12 * s), 1)  # cadarço do outro
+    for dx, dy in ((-6, 9), (6, 12)):  # dois tênis, um mais baixo que o outro
+        tx, ty = mx + dx * s, my + dy * s
+        pygame.draw.ellipse(tela, cor, (tx - 3.5 * s, ty, 7 * s, 11 * s))          # corpo do tênis (visto de pé)
+        pygame.draw.rect(tela, (245, 245, 245), (tx - 3.5 * s, ty + 9 * s, 7 * s, 2.5 * s))  # sola branca
+        pygame.draw.ellipse(tela, (30, 30, 30), (tx - 3.5 * s, ty, 7 * s, 11 * s), 1)  # contorno escuro: destaca do asfalto
+
+
 def desenhar_postes(tela, deslocamento):
     """Postes com emaranhado de fios (os 'gatos'), um a cada 2 períodos, em cada lado da rua."""
     passo = PERIODO * 2  # distância entre postes
@@ -282,7 +377,10 @@ def desenhar_postes(tela, deslocamento):
             for extra, frouxo in ((0, 6), (12, 9), (26, 12)):
                 fio(tela, topo_poste(lado, d, extra), topo_poste(lado, d_prox, extra), frouxo / d)
         # Fio atravessando a rua, de um poste ao outro, bem frouxo.
-        fio(tela, topo_poste(-1, d, 10), topo_poste(1, d, 10), 14 / d)
+        a, b = topo_poste(-1, d, 10), topo_poste(1, d, 10)
+        fio(tela, a, b, 14 / d)
+        if sorteio(k, 20, 3) == 0:  # em um de cada 3 fios atravessando a rua tem tênis pendurado
+            tenis_pendurado(tela, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 14 / d), d, k)
 
 
 def desenhar(tela, deslocamento):
@@ -290,4 +388,5 @@ def desenhar(tela, deslocamento):
     desenhar_calcada(tela, deslocamento)   # 1) chão de concreto
     desenhar_casas(tela, deslocamento)     # 2) casas, lajes e caixas d'água
     desenhar_asfalto(tela, deslocamento)   # 3) rua, meio-fio, traços e faixa de pedestres
+    desenhar_pessoas(tela, deslocamento)   # 3,5) pessoas na calçada
     desenhar_postes(tela, deslocamento)    # 4) postes e fios por cima de tudo
