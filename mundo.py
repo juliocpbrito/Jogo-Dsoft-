@@ -130,7 +130,9 @@ COR_BOLHA = (120, 200, 255)
 
 
 class Obstaculo:
+    """Um obstáculo na rua (carro, cone, buraco ou barreira), com posição em profundidade e retângulo de colisão."""
     def __init__(self, tipo, pista, d):
+        """Cria o obstáculo do tipo dado na pista e profundidade dadas. Se for carro, sorteia modelo, cor e placa."""
         self.tipo = tipo      # "carro", "cone" ou "buraco"
         self.pista = pista    # 0 = esquerda, 1 = meio, 2 = direita
         self.d = d            # profundidade da ponta mais perto do jogador
@@ -163,9 +165,11 @@ class Obstaculo:
         self.atualizar_rect()
 
     def saiu_da_tela(self):
+        """True quando o obstáculo já passou do jogador e saiu por baixo da tela."""
         return self.d + self.comprimento < D_SUMIR
 
     def desenhar(self, tela):
+        """Desenha o obstáculo de acordo com o tipo."""
         if self.d > D_SURGIMENTO + 0.5:  # ainda acima da tela
             return
         if self.tipo == "carro":
@@ -297,12 +301,14 @@ class Gorjeta:
     """Uma moeda flutuando um pouco acima da rua. Desce junto com a rua, como o cone."""
 
     def __init__(self, pista, d):
+        """Cria uma moeda na pista e profundidade dadas."""
         self.pista = pista
         self.d = d
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.atualizar_rect()
 
     def atualizar_rect(self):
+        """Recalcula o retângulo da moeda (tamanho e posição) para a profundidade atual."""
         y = y_da_profundidade(self.d)
         tamanho = max(1, round(TAMANHO_MOEDA * escala(y)))
         self.rect = pygame.Rect(0, 0, tamanho, tamanho)
@@ -310,13 +316,16 @@ class Gorjeta:
         self.rect.centerx = round(x_da_pista(self.pista, y))
 
     def descer(self, velocidade):
+        """Move a moeda na direção do jogador, junto com a rua."""
         self.d -= velocidade
         self.atualizar_rect()
 
     def saiu_da_tela(self):
+        """True quando a moeda já saiu por baixo da tela."""
         return self.d < D_SUMIR
 
     def desenhar(self, tela):
+        """Desenha a moeda flutuando, com sombra no chão."""
         if self.d > D_SURGIMENTO + 0.5:
             return
         y = y_da_profundidade(self.d)
@@ -336,12 +345,14 @@ class Capacete:
     """O power-up: um capacete azul flutuando na rua. Desce junto com a rua, como a moeda."""
 
     def __init__(self, pista, d):
+        """Cria um capacete (power-up) na pista e profundidade dadas."""
         self.pista = pista
         self.d = d
         self.rect = pygame.Rect(0, 0, 0, 0)
         self.atualizar_rect()
 
     def atualizar_rect(self):
+        """Recalcula o retângulo do capacete para a profundidade atual."""
         y = y_da_profundidade(self.d)
         tamanho = max(1, round(34 * escala(y)))
         self.rect = pygame.Rect(0, 0, tamanho, tamanho)
@@ -349,13 +360,16 @@ class Capacete:
         self.rect.centerx = round(x_da_pista(self.pista, y))
 
     def descer(self, velocidade):
+        """Move o capacete na direção do jogador, junto com a rua."""
         self.d -= velocidade
         self.atualizar_rect()
 
     def saiu_da_tela(self):
+        """True quando o capacete já saiu por baixo da tela."""
         return self.d < D_SUMIR
 
     def desenhar(self, tela):
+        """Desenha o capacete azul flutuando, com sombra no chão."""
         if self.d > D_SURGIMENTO + 0.5:
             return
         y = y_da_profundidade(self.d)
@@ -373,7 +387,9 @@ class Capacete:
 
 
 class Mundo:
+    """A rua: guarda os obstáculos, moedas e capacetes, controla a velocidade e a dificuldade e detecta colisões."""
     def __init__(self):
+        """Começa uma rua vazia, na velocidade inicial e sem proteção."""
         self.obstaculos = []  # obstáculos na rua agora
         self.gorjetas = []  # moedas na rua agora
         self.moedas_pegas = 0  # quantas moedas o jogador pegou na partida
@@ -424,6 +440,7 @@ class Mundo:
 
     def atualizar(self):
         # Acelera um pouquinho a cada quadro, até o limite. min() devolve o menor dos dois.
+        """Avança um quadro: acelera, cria novas fileiras, move tudo na direção do jogador e remove o que saiu da tela."""
         self.fator = min(self.fator + ACELERACAO, VELOCIDADE_MAXIMA)
         self.velocidade = VELOCIDADE_RUA * self.fator
 
