@@ -15,10 +15,12 @@ METROS_POR_QUADRO = 0.2  # quanto a distância aumenta a cada quadro (a 60 quadr
 
 
 def main():
+    """Liga o PyGame e roda o loop principal: eventos, atualização e desenho de acordo com o estado (menu, jogando, pausado, game over)."""
     pygame.init()  # liga os módulos do PyGame
     tela = pygame.display.set_mode((LARGURA, ALTURA))  # cria a janela e devolve a tela onde desenhamos
     pygame.display.set_caption("Delivery Surfers")     # título da janela
     audio.iniciar()  # prepara a música e os efeitos (se os arquivos existirem)
+    telas.pre_carregar()  # carrega as artes antes de jogar, para não travar na primeira vez
     relogio = pygame.time.Clock()  # relógio para controlar a velocidade do jogo
 
     estado = "menu"  # em qual tela estamos: "menu", "jogando", "pausado" ou "game_over"

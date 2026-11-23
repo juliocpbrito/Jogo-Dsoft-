@@ -116,6 +116,7 @@ def desenhar_casa(tela, lado, indice, d0):
     cor = COR_TIJOLO if tijolo else CORES_CASAS[sorteio(indice, 3, len(CORES_CASAS))]
 
     def d_em(fracao):
+        """Profundidade a uma fração da largura da casa (0 = começo, 1 = fim)."""
         return d0 + LARGURA_CASA * fracao  # profundidade a uma fração da casa (0 = começo, 1 = fim)
 
     # Frente da casa vista de lado (a parede que dá para a rua).
