@@ -8,15 +8,23 @@ import pygame
 from config import LARGURA, ALTURA, COR_FUNDO, COR_TEXTO  # constantes do config.py
 
 
+def fonte_padrao(tamanho):
+    """Fonte padrão do PyGame no tamanho pedido. Cada tamanho é criado uma vez só e reaproveitado."""
+    if tamanho not in _fontes_padrao:
+        _fontes_padrao[tamanho] = pygame.font.Font(None, tamanho)  # None = fonte padrão do PyGame
+    return _fontes_padrao[tamanho]
+
+
 def escrever(tela, texto, tamanho, y):
     """Escreve um texto centralizado na horizontal, na altura y."""
-    fonte = pygame.font.Font(None, tamanho)  # None = fonte padrão do PyGame, no tamanho pedido
+    fonte = fonte_padrao(tamanho)  # fonte já criada (ou criada agora, uma vez só)
     imagem = fonte.render(texto, True, COR_TEXTO)  # transforma o texto numa imagem (True = bordas suaves)
     retangulo = imagem.get_rect(center=(LARGURA // 2, y))  # Rect da imagem, com o centro em (meio da tela, y)
     tela.blit(imagem, retangulo)  # cola a imagem na tela, na posição do retângulo
 
 
 _fontes = {}  # guarda as fontes já criadas: criar fonte a cada quadro seria lento
+_fontes_padrao = {}  # o mesmo, para a fonte padrão do PyGame (um tamanho por entrada)
 _imagens = {}  # guarda imagens prontas (degradê, painel) pelo mesmo motivo
 
 
@@ -45,7 +53,7 @@ def escrever_contorno(tela, texto, tamanho, cor, cor_contorno, centro, espessura
 
 def escrever_esquerda(tela, texto, tamanho, x, y, cor):
     """Texto alinhado à esquerda: o lado esquerdo do texto fica em x (e o meio na altura y)."""
-    imagem = pygame.font.Font(None, tamanho).render(texto, True, cor)
+    imagem = fonte_padrao(tamanho).render(texto, True, cor)
     tela.blit(imagem, imagem.get_rect(midleft=(x, y)))
 
 
@@ -62,7 +70,7 @@ def desenhar_tecla(tela, x, y, simbolo):
     if simbolo in setas:  # setas: um triângulo
         pygame.draw.polygon(tela, (40, 40, 40), setas[simbolo])
     else:  # qualquer outra coisa é uma letra
-        letra = pygame.font.Font(None, 28).render(simbolo, True, (40, 40, 40))
+        letra = fonte_padrao(28).render(simbolo, True, (40, 40, 40))
         tela.blit(letra, letra.get_rect(center=(x, y)))
 
 
@@ -94,6 +102,12 @@ def carregar_fundo(chave, caminho):
 def fundo_menu():
     """Arte do menu (ou None, se o arquivo não existir)."""
     return carregar_fundo("fundo", CAMINHO_FUNDO_MENU)
+
+
+def pre_carregar():
+    """Carrega as artes do menu e do game over logo no começo, para o jogo não travar um instante na primeira vez que aparecem."""
+    fundo_menu()
+    carregar_fundo("fundo_game_over", CAMINHO_FUNDO_GAME_OVER)
 
 
 def desenhar_menu(tela, melhor, quadro):
@@ -129,6 +143,7 @@ def desenhar_menu(tela, melhor, quadro):
 
 def desenhar_placar(tela, distancia, moedas=0):
     # int() corta a parte decimal: 12.8 vira 12
+    """Escreve a distância percorrida e as gorjetas no topo da tela, durante o jogo."""
     escrever(tela, "Distância: " + str(int(distancia)) + " m", 36, 30)  # y = 30: no topo da tela
     escrever(tela, "Gorjetas: " + str(moedas), 30, 60)  # moedas pegas, logo abaixo
 

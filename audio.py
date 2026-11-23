@@ -75,15 +75,18 @@ def tocar_musica():
 
 
 def parar_musica():
+    """Para a música de fundo."""
     if ativo:
         pygame.mixer.music.stop()
 
 
 def pausar_musica():
+    """Pausa a música de fundo (para continuar depois)."""
     if ativo:
         pygame.mixer.music.pause()
 
 
 def retomar_musica():
+    """Continua a música de onde parou."""
     if ativo:
         pygame.mixer.music.unpause()
