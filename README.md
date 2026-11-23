@@ -11,7 +11,7 @@ que vem logo atrás. Desvie dos obstáculos, pegue gorjetas e corra o mais longe
 
 [Sobre o projeto](#sobre-o-projeto) · [Capturas de tela](#capturas-de-tela) · [Como rodar](#como-rodar) · [Como jogar](#como-jogar) · [Estrutura do projeto](#estrutura-do-projeto) · [Integrantes](#integrantes) · [Design e processo](#design-e-processo) · [Créditos](#créditos) · [Uso de IA](#uso-de-ia) · [Licença](#licença)
 
-**Vídeo de apresentação:** [PREENCHER: link do vídeo]
+**Vídeo de apresentação:** [https://youtu.be/Gq23VRDGLYk]
 
 ## Sobre o projeto
 
