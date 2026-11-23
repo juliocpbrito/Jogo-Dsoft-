@@ -76,17 +76,24 @@ def painel_inferior():
 
 
 CAMINHO_FUNDO_MENU = os.path.join("assets", "imagens", "menu.png")  # arte da capa do jogo
+CAMINHO_FUNDO_GAME_OVER = os.path.join("assets", "imagens", "gameover.png")  # arte da tela de game over
+
+
+def carregar_fundo(chave, caminho):
+    """Carrega uma imagem de fundo uma vez só e a ajusta ao tamanho da janela. Se faltar o arquivo, devolve None.
+    'chave' é o nome com que a imagem fica guardada em _imagens (para não carregar de novo a cada quadro)."""
+    if chave not in _imagens:
+        try:
+            imagem = pygame.image.load(caminho).convert()  # convert(): deixa a imagem no formato rápido da tela
+            _imagens[chave] = pygame.transform.smoothscale(imagem, (LARGURA, ALTURA))  # ajusta ao tamanho da janela
+        except (pygame.error, FileNotFoundError):
+            _imagens[chave] = None  # sem a imagem, a tela usa o plano B (texto)
+    return _imagens[chave]
 
 
 def fundo_menu():
-    """Carrega a arte do menu uma vez só e a ajusta ao tamanho da janela. Se faltar o arquivo, devolve None."""
-    if "fundo" not in _imagens:
-        try:
-            imagem = pygame.image.load(CAMINHO_FUNDO_MENU).convert()  # convert(): deixa a imagem no formato rápido da tela
-            _imagens["fundo"] = pygame.transform.smoothscale(imagem, (LARGURA, ALTURA))  # ajusta ao tamanho da janela
-        except (pygame.error, FileNotFoundError):
-            _imagens["fundo"] = None  # sem a imagem, o menu usa o título em texto
-    return _imagens["fundo"]
+    """Arte do menu (ou None, se o arquivo não existir)."""
+    return carregar_fundo("fundo", CAMINHO_FUNDO_MENU)
 
 
 def desenhar_menu(tela, melhor, quadro):
@@ -127,12 +134,25 @@ def desenhar_placar(tela, distancia, moedas=0):
 
 
 def desenhar_game_over(tela, distancia, melhor, moedas=0):
-    tela.fill(COR_FUNDO)
-    escrever(tela, "GAME OVER", 64, ALTURA // 3)
-    escrever(tela, "Distância: " + str(int(distancia)) + " m", 40, ALTURA // 2)
-    escrever(tela, "Recorde: " + str(melhor) + " m", 40, ALTURA // 2 + 50)
-    escrever(tela, "Gorjetas: " + str(moedas), 40, ALTURA // 2 + 100)
-    escrever(tela, "Aperte ESPAÇO para jogar de novo", 28, ALTURA // 2 + 160)
+    """Tela de game over: a arte de fundo (que já traz o título GAME OVER) com um painel embaixo mostrando o resultado."""
+    fundo = carregar_fundo("fundo_game_over", CAMINHO_FUNDO_GAME_OVER)
+    if fundo is None:
+        # Plano B, se a imagem não existir: fundo liso e textos.
+        tela.fill(COR_FUNDO)
+        escrever(tela, "GAME OVER", 64, ALTURA // 3)
+    else:
+        tela.blit(fundo, (0, 0))
+
+    # Painel de baixo, sobre a parte vazia da rua (o mesmo do menu).
+    tela.blit(painel_inferior(), (20, 638))
+    metros = int(distancia)
+    if metros >= melhor and metros > 0:  # o main.py já atualizou 'melhor': igual à distância = bateu o recorde
+        escrever(tela, "NOVO RECORDE: " + str(metros) + " m", 38, 662)
+    else:
+        escrever(tela, "Distância: " + str(metros) + " m", 38, 662)
+    escrever(tela, "Recorde: " + str(melhor) + " m     Gorjetas: " + str(moedas), 30, 700)
+    if (pygame.time.get_ticks() // 500) % 2 == 0:  # pisca a cada meio segundo (get_ticks = milissegundos desde o início)
+        escrever(tela, "ESPAÇO para jogar de novo", 32, 750)
 
 
 def desenhar_pausa(tela):
