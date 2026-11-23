@@ -45,7 +45,9 @@ INCLINACAO = 4  # pixels que o corpo se inclina para o lado ao trocar de pista
 
 
 class Jogador:
+    """O entregador e o cliente que o persegue: posição, pulo, deslize, batidas e desenho."""
     def __init__(self):
+        """Cria o entregador na pista do meio, sem batidas, com o cliente bem longe."""
         self.pista = 1  # 0 = esquerda, 1 = meio, 2 = direita
         self.rect = pygame.Rect(0, 0, LARGURA_JOGADOR, ALTURA_JOGADOR)  # retângulo do entregador (no chão)
         self.rect.centerx = PISTAS[self.pista]  # centro do retângulo no centro da pista
@@ -76,14 +78,17 @@ class Jogador:
         self.quadro = 0  # conta os quadros desde o início; usado para animar as pernas
 
     def esquerda(self):
+        """Passa para a pista da esquerda (se não estiver na borda)."""
         if self.pista > 0:  # só anda se não estiver na pista da esquerda
             self.pista -= 1
 
     def direita(self):
+        """Passa para a pista da direita (se não estiver na borda)."""
         if self.pista < len(PISTAS) - 1:  # só anda se não estiver na pista da direita
             self.pista += 1
 
     def pular(self):
+        """Começa um pulo. Não pula de novo se já estiver no ar."""
         if not self.pulando:  # não dá para pular de novo no ar
             self.deslizando = False  # pular cancela o deslize
             self.pulando = True
@@ -91,6 +96,7 @@ class Jogador:
 
     def deslizar(self):
         # No ar, apertar ↓ faz ele cair rápido (como nos jogos do gênero).
+        """No chão, abaixa por um tempo; no ar, faz o entregador cair rápido."""
         if self.pulando:
             self.velocidade_pulo = -FORCA_PULO
         # No chão, abaixa e começa a contar o tempo do deslize.
@@ -99,6 +105,7 @@ class Jogador:
             self.tempo_deslize = TEMPO_DESLIZE
 
     def tratar_tecla(self, tecla):
+        """Recebe uma tecla (setas ou A, D, W, S) e chama a ação certa."""
         if tecla == pygame.K_LEFT or tecla == pygame.K_a:
             self.esquerda()
         elif tecla == pygame.K_RIGHT or tecla == pygame.K_d:
@@ -112,6 +119,7 @@ class Jogador:
         # Diz se o entregador passa pelo obstáculo sem bater.
         # Pulando: passa por cima de cone, lombada e buraco (mas não de carro).
         # Deslizando: passa por baixo de barreira (se o C criar esse tipo).
+        """Diz se o entregador passa por um obstáculo do tipo dado sem bater (pulando ou deslizando)."""
         if self.pulando and (tipo == "cone" or tipo == "lombada" or tipo == "buraco"):
             return True
         if self.deslizando and tipo == "barreira":
@@ -121,6 +129,7 @@ class Jogador:
     def bater(self):
         # Ainda piscando da batida anterior: ignora, senão o mesmo obstáculo
         # contaria uma batida por quadro enquanto estiver encostado.
+        """Conta uma batida, aproxima o cliente e liga a invencibilidade. Devolve False se ainda estiver invencível."""
         if self.invencivel > 0:
             return False
 
@@ -132,9 +141,11 @@ class Jogador:
         return True  # avisa o main que a batida valeu (útil para tocar som)
 
     def perdeu(self):
+        """True quando o entregador levou 2 batidas seguidas (fim de jogo)."""
         return self.batidas >= 2  # 2 batidas seguidas = game over
 
     def atualizar(self):
+        """Avança um quadro: troca de pista, pulo, deslize, contagem de batidas e posição do cliente."""
         self.quadro += 1  # mais um quadro de animação
 
         # Troca de pista com animação: 'pista' é o destino; x anda até lá, VELOCIDADE_TROCA por quadro.
@@ -193,6 +204,7 @@ class Jogador:
 
     def desenhar(self, tela):
         # Sombra no chão, sempre: no ar ela mostra a altura do pulo.
+        """Desenha a sombra, o cliente e o entregador (que pisca enquanto está invencível)."""
         sombra = pygame.Rect(0, 0, LARGURA_JOGADOR, 12)
         sombra.centerx = self.rect.centerx
         sombra.centery = self.chao
@@ -207,6 +219,7 @@ class Jogador:
 
     # feito com Claude
     def desenhar_entregador(self, tela):
+        """Desenha o entregador: pernas, braços, jaqueta, mochila e capacete, em pé, pulando ou deslizando."""
         cx = self.rect.centerx  # centro horizontal das pernas
         cc = cx + INCLINACAO * self.direcao  # centro do corpo: se inclina para o lado em que está indo
         pes = self.chao - int(self.altura_pulo)  # y dos pés (sobe junto com o pulo)
@@ -254,6 +267,7 @@ class Jogador:
     # feito com Claude
     def desenhar_perna(self, tela, x, topo, base, largura):
         # Uma perna do entregador: shorts em cima, perna de fora e havaiana branca no pé.
+        """Desenha uma perna do entregador: shorts, perna de fora e havaiana."""
         altura_shorts = min(9, base - topo)  # em perna curta o shorts ocupa tudo
         pygame.draw.rect(tela, COR_PELE_ENTREGADOR, (x, topo, largura, base - topo))  # perna
         pygame.draw.rect(tela, COR_SHORTS, (x - 1, topo, largura + 2, altura_shorts))  # shorts
@@ -261,6 +275,7 @@ class Jogador:
 
     # feito com Claude
     def desenhar_cliente(self, tela):
+        """Desenha o cliente faminto que persegue o entregador, com rosto bravo e talheres."""
         topo = self.perseguidor.top
         # Só desenha se o cliente já apareceu na tela.
         if topo > ALTURA:
